@@ -19,13 +19,17 @@ public class Game {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private String id;
 
-    @Column(value = "GAME_MODE")
+    @Column(name = "GAME_LOBBY_ID")
+    private Long  gameLobbyId;
+
+    @Column(name = "GAME_MODE")
     private GameMode gameMode;
 
-    @Column(value = "GAME_STATUS")
+    @Column(name = "GAME_STATUS")
     private GameStatus gameStatus;
 
-    @Column(value = "WINNER")
-    private
+    @ManyToOne
+    @JoinColumn(name = "winner_id")
+    private User winner;
 
 }

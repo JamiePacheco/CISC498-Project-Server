@@ -1,27 +1,23 @@
 package com.aux_arena.models;
 
 import com.aux_arena.models.enums.GameLobbyStatus;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GenerationType;
+import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 
 @Data
 @Entity
 @Builder
-@RequiredArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "GAME_LOBBY")
 public class GameLobby {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private String id;
+    private Long id;
 
     @Column(name = "NAME")
     private String name;
@@ -34,4 +30,11 @@ public class GameLobby {
 
     @Column(name = "CREATED_AT")
     private Instant createdAt;
+
+    @Column(name = "PRIVATE")
+    private boolean privateStatus;
+
+    @Column(name = "AUTHOR_ID")
+    @ManyToOne(fetch = FetchType.LAZY)
+    private User author;
 }
