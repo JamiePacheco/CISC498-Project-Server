@@ -32,4 +32,6 @@ public class UserPromptSubmission {
     @ManyToOne(fetch = FetchType.LAZY)
     private User author;
 
+
+
 }
