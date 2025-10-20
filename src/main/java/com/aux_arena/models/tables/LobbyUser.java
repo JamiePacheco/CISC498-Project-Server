@@ -1,4 +1,4 @@
-package com.aux_arena.models;
+package com.aux_arena.models.tables;
 
 import jakarta.persistence.Entity;
 import lombok.AllArgsConstructor;
