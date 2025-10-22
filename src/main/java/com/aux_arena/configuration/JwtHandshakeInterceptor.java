@@ -1,12 +1,11 @@
 package com.aux_arena.configuration;
 
-import com.aux_arena.service.UserService;
+import com.aux_arena.service.definitions.UserService;
 import com.aux_arena.utility.JwtUtil;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;

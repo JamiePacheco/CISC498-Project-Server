@@ -12,10 +12,10 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private String id;
+    private Long id;
 
     @Column(name = "EMAIL")
-    private String username;
+    private String email;
 
     @Column(name = "PASSWORD")
     private String password;

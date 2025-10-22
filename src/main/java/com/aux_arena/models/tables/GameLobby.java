@@ -19,6 +19,9 @@ public class GameLobby {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "LOBBY-CODE")
+    private String lobbyCode;
+
     @Column(name = "NAME")
     private String name;
 
