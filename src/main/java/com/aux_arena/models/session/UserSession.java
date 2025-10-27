@@ -1,10 +1,15 @@
 package com.aux_arena.models.session;
 
+import lombok.Builder;
+import lombok.Data;
+
 import java.time.Instant;
 
+@Data
+@Builder
 public class UserSession {
     private Long userId;
-    private String sessionID;
+    private Long sessionID;
     private String displayName;
     private String lobbyId;
     private Instant lastPingTime;
@@ -12,6 +17,7 @@ public class UserSession {
     private Boolean isSpectator;
 
 
-
-
+    public UserSession(Long sessionId) {
+        this.sessionID = sessionId;
+    }
 }

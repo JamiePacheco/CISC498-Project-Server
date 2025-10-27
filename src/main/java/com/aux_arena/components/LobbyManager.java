@@ -17,8 +17,19 @@ public class LobbyManager {
     // TODO get user from database (create if no user exists) then add it to the current lobby
     public void onUserConnect(Long lobbyId, Long sessionId, Long userId) {
         LobbySession lobbySession = lobbies.computeIfAbsent(lobbyId, LobbySession::new);
+        UserSession userSession = userSessions.computeIfAbsent(sessionId, UserSession::new);
+
+
+
+
 
     }
+
+
+
+
+
+
 
 
 }

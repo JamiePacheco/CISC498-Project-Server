@@ -38,7 +38,9 @@ public class LobbySession {
         this.id = id;
     }
 
-    public
+    public void addUser(UserSession userSession) {
+        activeUsers.compute(userSession.getSessionID(), UserSession::new);
+    }
 
     public boolean isInactive() {
         return Duration.between(lastUpdated, Instant.now()).toMillis() > 10;
