@@ -19,7 +19,7 @@ public class GameLobby {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "LOBBY-CODE")
+    @Column(name = "LOBBY_CODE")
     private String lobbyCode;
 
     @Column(name = "NAME")
@@ -37,7 +37,10 @@ public class GameLobby {
     @Column(name = "PRIVATE")
     private boolean privateStatus;
 
-    @Column(name = "AUTHOR_ID")
+    @Column(name = "PASSWORD")
+    private String password;
+
+    @Column(name = "AUTHOR")
     @ManyToOne(fetch = FetchType.LAZY)
     private User author;
 }
