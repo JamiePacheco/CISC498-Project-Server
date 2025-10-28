@@ -39,7 +39,11 @@ public class LobbySession {
     }
 
     public void addUser(UserSession userSession) {
-        activeUsers.compute(userSession.getSessionID(), UserSession::new);
+        UserSession addedUser = activeUsers.compute(userSession.getSessionID(), UserSession::new);
+    }
+
+    public void removeUser(UserSession userSession) {
+        activeUsers.remove(userSession.getSessionID());
     }
 
     public boolean isInactive() {

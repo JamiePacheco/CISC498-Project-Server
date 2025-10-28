@@ -19,7 +19,7 @@ public class LobbyManager {
         LobbySession lobbySession = lobbies.computeIfAbsent(lobbyId, LobbySession::new);
         UserSession userSession = userSessions.computeIfAbsent(sessionId, UserSession::new);
 
-
+        lobbySession.addUser(userSession);
 
 
 

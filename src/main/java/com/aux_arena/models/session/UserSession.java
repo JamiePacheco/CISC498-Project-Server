@@ -20,4 +20,5 @@ public class UserSession {
     public UserSession(Long sessionId) {
         this.sessionID = sessionId;
     }
+
 }
