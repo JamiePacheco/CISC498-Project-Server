@@ -15,6 +15,9 @@ import java.time.Instant;
 @Table(name = "GAME_LOBBY")
 public class GameLobby {
 
+    public static int MAX_PLAYERS = 20;
+    public static int MAX_CAPACITY = 100;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -29,7 +32,10 @@ public class GameLobby {
     private GameLobbyStatus status;
 
     @Column(name = "MAX_PLAYERS")
-    private int maxPlayers;
+    private int maxPlayers = MAX_PLAYERS;
+
+    @Column(name = "MAX_CAPACITY")
+    private int maxCapacity = MAX_CAPACITY;
 
     @Column(name = "CREATED_AT")
     private Instant createdAt;
@@ -42,5 +48,5 @@ public class GameLobby {
 
     @Column(name = "AUTHOR")
     @ManyToOne(fetch = FetchType.LAZY)
-    private User author;
+    private LobbyUser author;
 }

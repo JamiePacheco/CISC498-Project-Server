@@ -9,15 +9,15 @@ import java.time.Instant;
 @Builder
 public class UserSession {
     private Long userId;
-    private Long sessionID;
+    private String sessionID;
     private String displayName;
-    private String lobbyId;
+    private Long lobbyId;
     private Instant lastPingTime;
-    private Boolean isReady;
-    private Boolean isSpectator;
+    private Boolean isReady = false;
+    private Boolean isSpectator = false;
 
 
-    public UserSession(Long sessionId) {
+    public UserSession(String sessionId) {
         this.sessionID = sessionId;
     }
 

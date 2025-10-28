@@ -3,6 +3,7 @@ package com.aux_arena.components;
 import com.aux_arena.models.session.LobbySession;
 import com.aux_arena.models.session.UserSession;
 import com.aux_arena.models.tables.GameLobby;
+import com.aux_arena.models.tables.LobbyUser;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -12,17 +13,21 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LobbyManager {
 
     private final Map<Long, LobbySession> lobbies = new ConcurrentHashMap<>();
-    private final Map<Long, UserSession> userSessions = new ConcurrentHashMap<>();
+    private final Map<String, UserSession> userSessions = new ConcurrentHashMap<>();
 
     // TODO get user from database (create if no user exists) then add it to the current lobby
-    public void onUserConnect(Long lobbyId, Long sessionId, Long userId) {
+    public LobbySession onUserConnect(Long lobbyId, LobbyUser user) {
+
+        // create lobby if no lobby exists
         LobbySession lobbySession = lobbies.computeIfAbsent(lobbyId, LobbySession::new);
-        UserSession userSession = userSessions.computeIfAbsent(sessionId, UserSession::new);
+        UserSession addedUser = lobbySession.addUser(user);
 
-        lobbySession.addUser(userSession);
+        if (addedUser == null) {
+            throw new RuntimeException(String.format("Game Lobby %s is full", lobbySession.getLobbyCode()));
+        }
 
-
-
+        userSessions.put(user.getLastSocketConnectionId(), addedUser);
+        return lobbySession;
     }
 
 

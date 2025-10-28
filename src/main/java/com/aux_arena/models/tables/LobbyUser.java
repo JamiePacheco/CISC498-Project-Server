@@ -30,5 +30,8 @@ public class LobbyUser {
 
     @Column(name = "joined_at")
     private Instant joinedAt;
+
+    @Column(name = "last_socket_connection_ id")
+    private String lastSocketConnectionId;
     
 }

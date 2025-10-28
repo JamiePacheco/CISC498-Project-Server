@@ -11,11 +11,15 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class message<T> {
+public class Message<T> {
 
     private T messageContent;
 
     private MessageStatus messageStatus;
 
     private MessageType messageType;
+
+    private String Message;
+
+    private String errorMessage;
 }

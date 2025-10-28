@@ -1,6 +1,8 @@
 package com.aux_arena.models.session;
 
 import com.aux_arena.models.enums.GameLobbyStatus;
+import com.aux_arena.models.tables.GameLobby;
+import com.aux_arena.models.tables.LobbyUser;
 import com.aux_arena.models.tables.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -10,9 +12,11 @@ import lombok.NoArgsConstructor;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Data
 @AllArgsConstructor
@@ -24,13 +28,14 @@ public class LobbySession {
     private String name;
     private GameLobbyStatus status;
     private int maxPlayers;
+    private int maxCapacity;
     private Instant createdAt;
     private boolean privateStatus;
     private String password;
-    private User author;
+    private LobbyUser author;
 
     private Instant lastUpdated;
-    private Map<Long, UserSession> activeUsers = new ConcurrentHashMap<>();
+    private Map<String, UserSession> activeUsers = new ConcurrentHashMap<>();
 
     private boolean dirty;
 
@@ -38,8 +43,39 @@ public class LobbySession {
         this.id = id;
     }
 
-    public void addUser(UserSession userSession) {
-        UserSession addedUser = activeUsers.compute(userSession.getSessionID(), UserSession::new);
+    public List<UserSession> getPlayers() {
+        return activeUsers
+                .values()
+                .stream()
+                .filter(user -> !user.getIsSpectator())
+                .toList();
+    }
+
+    public void loadAttributes(GameLobby gameLobby) {
+        this.lobbyCode = gameLobby.getLobbyCode();
+        this.name = gameLobby.getName();
+        this.status = gameLobby.getStatus();
+        this.maxPlayers = gameLobby.getMaxPlayers();
+        this.privateStatus = gameLobby.isPrivateStatus();
+        this.password = gameLobby.getPassword();
+        this.author = gameLobby.getAuthor();
+    }
+
+    public UserSession addUser(LobbyUser lobbyUser) {
+        UserSession addedUser = null;
+        if (this.activeUsers.size() == maxCapacity) {
+            return addedUser;
+        }
+
+        addedUser = UserSession.builder()
+                .userId(lobbyUser.getId())
+                .lobbyId(this.id)
+                .displayName(lobbyUser.getNickname())
+                .isSpectator(this.getPlayers().size() == maxPlayers)
+                .build();
+
+        addedUser = activeUsers.put(lobbyUser.getLastSocketConnectionId(), addedUser);
+        return addedUser;
     }
 
     public void removeUser(UserSession userSession) {
