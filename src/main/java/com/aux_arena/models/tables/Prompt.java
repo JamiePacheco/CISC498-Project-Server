@@ -13,7 +13,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 public class Prompt {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -34,6 +33,4 @@ public class Prompt {
 
     @Column(name = "POSITION")
     private int position;
-
-
 }

@@ -3,7 +3,6 @@ package com.aux_arena.models.session;
 import com.aux_arena.models.enums.GameLobbyStatus;
 import com.aux_arena.models.tables.GameLobby;
 import com.aux_arena.models.tables.LobbyUser;
-import com.aux_arena.models.tables.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -11,12 +10,10 @@ import lombok.NoArgsConstructor;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 @Data
 @AllArgsConstructor
@@ -63,6 +60,7 @@ public class LobbySession {
 
     public UserSession addUser(LobbyUser lobbyUser) {
         UserSession addedUser = null;
+
         if (this.activeUsers.size() == maxCapacity) {
             return addedUser;
         }
