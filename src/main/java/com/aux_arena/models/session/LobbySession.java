@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,6 +34,7 @@ public class LobbySession {
 
     private Instant lastUpdated;
     private Map<String, UserSession> activeUsers = new ConcurrentHashMap<>();
+    private Set<UserSession> inactiveUsers = new HashSet<>();
 
     private boolean dirty;
 
@@ -76,8 +78,23 @@ public class LobbySession {
         return addedUser;
     }
 
-    public void removeUser(UserSession userSession) {
-        activeUsers.remove(userSession.getSessionID());
+    public UserSession disconnectUser(LobbyUser lobbyUser) {
+        UserSession connectedUser = activeUsers.get(lobbyUser.getLastSocketConnectionId());
+        if (connectedUser != null) {
+            activeUsers.remove(lobbyUser.getLastSocketConnectionId());
+            connectedUser.setLastPingTime(Instant.now());
+            inactiveUsers.add(connectedUser);
+        }
+        return connectedUser;
+    }
+
+    public void removeUser(LobbyUser lobbyUser) {
+        UserSession removedUser = activeUsers.get(lobbyUser.getLastSocketConnectionId());
+        if (removedUser != null) {
+            activeUsers.remove(lobbyUser.getLastSocketConnectionId());
+        } else {
+            inactiveUsers.remove(lobbyUser.getLastSocketConnectionId());
+        }
     }
 
     public boolean isInactive() {

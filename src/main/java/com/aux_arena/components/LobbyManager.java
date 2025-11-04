@@ -30,6 +30,16 @@ public class LobbyManager {
         return lobbySession;
     }
 
+    public UserSession onUserDisconnect(Long lobbyId, LobbyUser user) {
+        LobbySession lobbySession = lobbies.get(lobbyId);
+        if (lobbySession == null) {
+            throw new RuntimeException(String.format("Game Lobby %s not found", lobbyId));
+        }
+        UserSession deactivatedUser = lobbySession.disconnectUser(user);
+
+
+    }
+
 
 
 
