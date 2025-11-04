@@ -34,7 +34,6 @@ public class LobbySession {
 
     private Instant lastUpdated;
     private Map<String, UserSession> activeUsers = new ConcurrentHashMap<>();
-    private Set<UserSession> inactiveUsers = new HashSet<>();
 
     private boolean dirty;
 
@@ -81,21 +80,30 @@ public class LobbySession {
     public UserSession disconnectUser(LobbyUser lobbyUser) {
         UserSession connectedUser = activeUsers.get(lobbyUser.getLastSocketConnectionId());
         if (connectedUser != null) {
-            activeUsers.remove(lobbyUser.getLastSocketConnectionId());
             connectedUser.setLastPingTime(Instant.now());
-            inactiveUsers.add(connectedUser);
+            connectedUser.setIsSpectator(false);
         }
         return connectedUser;
     }
+
+    public UserSession disconnectUser(String sessionId) {
+        UserSession connectedUser = activeUsers.get(sessionId);
+        if (connectedUser != null) {
+            connectedUser.setLastPingTime(Instant.now());
+            connectedUser.setIsSpectator(false);
+        }
+        return connectedUser;
+    }
+
 
     public void removeUser(LobbyUser lobbyUser) {
         UserSession removedUser = activeUsers.get(lobbyUser.getLastSocketConnectionId());
         if (removedUser != null) {
             activeUsers.remove(lobbyUser.getLastSocketConnectionId());
-        } else {
-            inactiveUsers.remove(lobbyUser.getLastSocketConnectionId());
         }
     }
+
+
 
     public boolean isInactive() {
         return Duration.between(lastUpdated, Instant.now()).toMillis() > 10;

@@ -13,7 +13,7 @@ public class UserSession {
     private String displayName;
     private Long lobbyId;
     private Instant lastPingTime;
-    private Boolean isReady = false;
+    private Boolean active = true;
     private Boolean isSpectator = false;
 
 

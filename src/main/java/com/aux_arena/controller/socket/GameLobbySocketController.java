@@ -1,6 +1,6 @@
 package com.aux_arena.controller.socket;
 
-import com.aux_arena.components.LobbyManager;
+import com.aux_arena.components.lobby.LobbyManager;
 import com.aux_arena.models.enums.message.MessageEvent;
 import com.aux_arena.models.enums.message.MessageStatus;
 import com.aux_arena.models.enums.message.MessageType;
@@ -126,4 +126,6 @@ public class GameLobbySocketController {
             messagingTemplate.convertAndSendToUser(sessionId, "/queue/errors", message);
         }
     }
+
+
 }
