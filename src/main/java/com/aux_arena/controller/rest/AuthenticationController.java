@@ -107,7 +107,7 @@ public class AuthenticationController {
         }
     }
 
-    @GetMapping()
+    @GetMapping("/guest")
     public ResponseEntity<Response<String>> createGuestUser(@RequestParam("username") String username, HttpServletResponse response) {
 
 
