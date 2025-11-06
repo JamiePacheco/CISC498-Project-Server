@@ -1,21 +1,51 @@
 package com.aux_arena.service.implementations;
 
+import com.aux_arena.models.enums.Roles;
+import com.aux_arena.models.tables.LobbyUser;
 import com.aux_arena.models.tables.User;
+import com.aux_arena.repository.LobbyUserRepository;
 import com.aux_arena.repository.UserRepository;
 import com.aux_arena.service.definitions.AuthenticationService;
+import com.aux_arena.service.definitions.LobbyUserService;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+
+import java.time.Instant;
 
 @AllArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
 
     UserRepository userRepository;
 
+    LobbyUserRepository lobbyUserRepository;
+
+    GameLobbyServiceImpl gameLobbyServiceImpl;
+
     @Override
     public User createNewUser(User user) {
         User newUser = userRepository.save(user);
         return newUser;
+    }
+
+    @Override
+    public LobbyUser createNewLobbyUser(String username, String lobbyCode) {
+        GameLobby joinedGameLobby = gameLobbyServiceImpl.getGameLobby(lobbyCode);
+        if (joinedGameLobby == null) {
+            throw new RuntimeException(String.format("Game lobby '%s' does not exist"), lobbyCode);
+        }
+
+        LobbyUser lobbyUser = LobbyUser.builder()
+                .gameLobby(joinedGameLobby)
+                .role(Roles.GUEST)
+                .nickname(username)
+                .user(null)
+                .joinedAt(Instant.now())
+                .build();
+
+        LobbyUser SavedUser = lobbyUserRepository.save(lobbyUser);
+
+        return SavedUser;
     }
 
     @Override

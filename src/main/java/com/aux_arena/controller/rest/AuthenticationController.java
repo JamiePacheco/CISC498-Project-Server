@@ -2,6 +2,7 @@ package com.aux_arena.controller.rest;
 
 import com.aux_arena.models.dtos.UserDTO;
 import com.aux_arena.models.rest.Response;
+import com.aux_arena.models.tables.LobbyUser;
 import com.aux_arena.models.tables.User;
 import com.aux_arena.service.definitions.UserService;
 import com.aux_arena.service.implementations.AuthenticationServiceImpl;
@@ -81,11 +82,7 @@ public class AuthenticationController {
             String token = jwtUtil.generateToken(userDetails.getUsername());
 
             // added jwt as an HTTP only cookie to the response
-            Cookie cookie = new Cookie("jwt", token);
-            cookie.setHttpOnly(true);
-            cookie.setSecure(true);
-            cookie.setPath("/");
-            cookie.setMaxAge(24 * 60 * 60);
+            Cookie cookie = jwtUtil.generateJwtCookie(token);
             response.addCookie(cookie);
 
             return ResponseEntity.ok(
@@ -108,10 +105,30 @@ public class AuthenticationController {
     }
 
     @GetMapping("/guest")
-    public ResponseEntity<Response<String>> createGuestUser(@RequestParam("username") String username, HttpServletResponse response) {
+    public ResponseEntity<Response<String>> createGuestUser(@RequestParam("username") String username, @RequestParam("game-lobby-code") String lobbyCode, HttpServletResponse response) {
+        try {
+            // save new user;
+            LobbyUser lobbyUser = authenticationService.createNewLobbyUser(username, lobbyCode);
+            String token = jwtUtil.generateToken(lobbyUser.getUsername() + lobbyUser.getId());
+            Cookie cookie = jwtUtil.generateJwtCookie(token);
+            response.addCookie(cookie);
 
-
-
+            return ResponseEntity.ok(
+                    Response.<String>builder()
+                            .message("Successfully created temp account")
+                            .status(HttpStatus.ACCEPTED)
+                            .build()
+            );
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest()
+                    .body(
+                            Response.<String>builder()
+                                    .message("Error creating guest user: ")
+                                    .responseContent(ex.getMessage())
+                                    .status(HttpStatus.BAD_REQUEST)
+                                    .build()
+                    );
+        }
     }
 
 

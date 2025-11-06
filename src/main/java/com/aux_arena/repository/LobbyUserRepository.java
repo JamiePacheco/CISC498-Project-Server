@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface LobbyUserRepository extends JpaRepository<LobbyUser, Long> {
+public interface LobbyUserRepository extends JpaRepository<LobbyUser, String> {
 }

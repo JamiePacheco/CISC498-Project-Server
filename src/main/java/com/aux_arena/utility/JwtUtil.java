@@ -47,6 +47,15 @@ public class JwtUtil {
         }
     }
 
+    public Cookie generateJwtCookie(String jwt) {
+        Cookie cookie = new Cookie("jwt", jwt);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setPath("/");
+        cookie.setMaxAge(24 * 60 * 60);
+        return cookie;
+    }
+
     public String extractJwtFromCookie(HttpServletRequest request) {
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {

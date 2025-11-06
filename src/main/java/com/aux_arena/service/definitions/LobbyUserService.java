@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 @Service
 public interface LobbyUserService {
 
-    LobbyUser getLo();
+    LobbyUser getLobbyUser(String username);
 
     LobbyUser saveLobbyUser(LobbyUser lobbyUser);
 
