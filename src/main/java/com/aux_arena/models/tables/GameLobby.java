@@ -17,7 +17,7 @@ public class GameLobby {
     public static int MAX_CAPACITY = 100;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     @Column(name = "LOBBY_CODE")
@@ -45,6 +45,6 @@ public class GameLobby {
     private String password;
 
     @JoinColumn(name = "AUTHOR_ID")
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY,  cascade = CascadeType.ALL)
     private LobbyUser author;
 }

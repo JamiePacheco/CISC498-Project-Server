@@ -17,7 +17,7 @@ import java.time.Instant;
 public class Round {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     @Column(name = "GAME_ID")

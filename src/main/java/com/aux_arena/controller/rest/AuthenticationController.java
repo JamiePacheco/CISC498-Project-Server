@@ -42,13 +42,10 @@ public class AuthenticationController {
 
     @PostMapping()
     public ResponseEntity<Response<UserDTO>> createNewUser(@RequestBody User user) {
-
         logger.info("Accessed create user endpoint");
-
         try {
             User newUser = authenticationService.createNewUser(user);
             UserDTO newUserModel = new UserDTO(newUser);
-
 
             return ResponseEntity.ok(
                     Response.<UserDTO>builder()

@@ -17,7 +17,7 @@ public class Game {
 
     @Id
     @Column(name = "ID")
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     @Column(name = "GAME_LOBBY_ID")
@@ -29,7 +29,7 @@ public class Game {
     @Column(name = "GAME_STATUS")
     private GameStatus gameStatus;
 
-    @ManyToOne
+    @ManyToOne(fetch =  FetchType.LAZY,  cascade = CascadeType.ALL)
     @JoinColumn(name = "WINNER_ID")
     private User winner;
 

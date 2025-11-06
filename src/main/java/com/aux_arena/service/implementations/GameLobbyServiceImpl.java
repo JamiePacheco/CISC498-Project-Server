@@ -4,13 +4,14 @@ import com.aux_arena.models.tables.GameLobby;
 import com.aux_arena.repository.GameLobbyRepository;
 import com.aux_arena.service.definitions.GameLobbyService;
 import com.aux_arena.utility.UuidGenerator;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
 @Service
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class GameLobbyServiceImpl implements GameLobbyService {
 
     private GameLobbyRepository gameLobbyRepository;

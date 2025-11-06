@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class Prompt {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     @Column(name = "ROUND_ID")
@@ -24,11 +24,11 @@ public class Prompt {
     private String prompt;
 
     @JoinColumn(name = "AUTHOR_ID")
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY,  cascade = CascadeType.ALL)
     private LobbyUser author;
 
     @JoinColumn(name = "ID")
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY,  cascade = CascadeType.ALL)
     private LobbyUser winner;
 
     @Column(name = "POSITION")

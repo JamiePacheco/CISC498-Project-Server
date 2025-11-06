@@ -11,6 +11,7 @@ import com.aux_arena.service.definitions.LobbyUserService;
 import com.aux_arena.utility.UuidGenerator;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -19,6 +20,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
 
+    private final PasswordEncoder passwordEncoder;
     UserRepository userRepository;
 
     LobbyUserRepository lobbyUserRepository;
@@ -27,6 +29,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     @Override
     public User createNewUser(User user) {
+        if (userRepository.findUserByEmail(user.getEmail()) != null) {
+            throw new UsernameNotFoundException("User with email " + user.getEmail() + " already exists");
+        }
+
+        String encodedPassword = passwordEncoder.encode(user.getPassword());
+        user.setPassword(encodedPassword);
         User newUser = userRepository.save(user);
         return newUser;
     }
