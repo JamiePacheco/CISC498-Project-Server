@@ -7,7 +7,6 @@ import lombok.AllArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-@Service
 @AllArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
 

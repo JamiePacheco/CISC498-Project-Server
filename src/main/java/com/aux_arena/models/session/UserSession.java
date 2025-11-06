@@ -1,5 +1,6 @@
 package com.aux_arena.models.session;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
@@ -7,6 +8,7 @@ import java.time.Instant;
 
 @Data
 @Builder
+@AllArgsConstructor
 public class UserSession {
     private Long userId;
     private String sessionID;
