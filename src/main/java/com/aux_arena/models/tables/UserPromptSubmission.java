@@ -17,18 +17,18 @@ public class UserPromptSubmission {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Column(name = "PROMPT")
+    @JoinColumn(name = "PROMPT_ID")
     @ManyToOne(fetch = FetchType.LAZY)
     private Prompt prompt;
 
-    @Column(name = "SONG_ID")
+    @JoinColumn(name = "SONG_ID")
     @ManyToOne(fetch = FetchType.LAZY)
     private Prompt promptId;
 
     @Column(name = "VOTES")
     private int votes;
 
-    @Column(name = "AUTHOR")
+    @JoinColumn(name = "AUTHOR_ID")
     @ManyToOne(fetch = FetchType.LAZY)
     private User author;
 

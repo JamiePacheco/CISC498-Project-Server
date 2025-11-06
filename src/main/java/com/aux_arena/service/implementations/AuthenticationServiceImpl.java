@@ -1,18 +1,21 @@
 package com.aux_arena.service.implementations;
 
 import com.aux_arena.models.enums.Roles;
+import com.aux_arena.models.tables.GameLobby;
 import com.aux_arena.models.tables.LobbyUser;
 import com.aux_arena.models.tables.User;
 import com.aux_arena.repository.LobbyUserRepository;
 import com.aux_arena.repository.UserRepository;
 import com.aux_arena.service.definitions.AuthenticationService;
 import com.aux_arena.service.definitions.LobbyUserService;
+import com.aux_arena.utility.UuidGenerator;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
+@Service
 @AllArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
 
@@ -32,7 +35,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     public LobbyUser createNewLobbyUser(String username, String lobbyCode) {
         GameLobby joinedGameLobby = gameLobbyServiceImpl.getGameLobby(lobbyCode);
         if (joinedGameLobby == null) {
-            throw new RuntimeException(String.format("Game lobby '%s' does not exist"), lobbyCode);
+            throw new RuntimeException(String.format("Game lobby '%s' does not exist", lobbyCode));
         }
 
         LobbyUser lobbyUser = LobbyUser.builder()
@@ -40,6 +43,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .role(Roles.GUEST)
                 .nickname(username)
                 .user(null)
+                .guestIdentifier(UuidGenerator.generateUuid())
                 .joinedAt(Instant.now())
                 .build();
 

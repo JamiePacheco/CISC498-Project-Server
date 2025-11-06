@@ -23,13 +23,13 @@ public class Prompt {
     @Column(name = "PROMPT", length = 400)
     private String prompt;
 
-    @Column(name = "AUTHOR")
+    @JoinColumn(name = "AUTHOR_ID")
     @ManyToOne(fetch = FetchType.LAZY)
-    private User author;
+    private LobbyUser author;
 
-    @Column(name = "WINNER")
+    @JoinColumn(name = "ID")
     @OneToOne(fetch = FetchType.LAZY)
-    private User winner;
+    private LobbyUser winner;
 
     @Column(name = "POSITION")
     private int position;

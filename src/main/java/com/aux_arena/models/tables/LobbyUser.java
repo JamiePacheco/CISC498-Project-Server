@@ -21,16 +21,20 @@ import java.util.List;
 public class LobbyUser implements UserDetails {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @Column(name = "game_lobby")
+    @JoinColumn(name = "GAME_LOBBY_ID")
     @ManyToOne(fetch = FetchType.LAZY)
     private GameLobby gameLobby;
 
-    @Column(name = "user")
+    @JoinColumn(name = "USER_ID")
     @ManyToOne(fetch = FetchType.LAZY)
     private User user;
+
+    // UUID generated for guest accounts to make them unique
+    @Column(name = "guest_identifier")
+    private String guestIdentifier;
 
     @Column(name = "nickname", length = 100)
     private String nickname;

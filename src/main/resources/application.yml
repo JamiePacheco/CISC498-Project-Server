@@ -4,9 +4,23 @@ spring:
   config:
     import: optional:file:.env-local[.properties]
   datasource:
-    url: jdbc:h2:file:./data/h2-data;DB_CLOSE_ON_EXIT=FALSE;IFEXISTS=TRUE;DB_CLOSE_DELAY=-1
+    url: jdbc:h2:file:./src/main/resources/data/h2-data;DB_CLOSE_ON_EXIT=FALSE;IFEXISTS=FALSE;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password:
+    hikari:
+      jdbc-url:  jdbc:h2:file:./src/main/resources/data/h2-data;DB_CLOSE_ON_EXIT=FALSE;IFEXISTS=FALSE;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
 server:
   port: 8080
+
+jakarta:
+  persistence:
+    jdbc:
+      url: jdbc:h2:file:./src/main/resources/data/h2-data;DB_CLOSE_ON_EXIT=FALSE;IFEXISTS=FALSE;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
 
 jwt:
   # change this to environment variable

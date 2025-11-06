@@ -16,6 +16,7 @@ import lombok.NoArgsConstructor;
 public class Game {
 
     @Id
+    @Column(name = "ID")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -29,7 +30,7 @@ public class Game {
     private GameStatus gameStatus;
 
     @ManyToOne
-    @JoinColumn(name = "winner_id")
+    @JoinColumn(name = "WINNER_ID")
     private User winner;
 
 }

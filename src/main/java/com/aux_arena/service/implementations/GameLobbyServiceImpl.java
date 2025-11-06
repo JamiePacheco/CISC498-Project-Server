@@ -5,9 +5,11 @@ import com.aux_arena.repository.GameLobbyRepository;
 import com.aux_arena.service.definitions.GameLobbyService;
 import com.aux_arena.utility.UuidGenerator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
+@Service
 @RequiredArgsConstructor
 public class GameLobbyServiceImpl implements GameLobbyService {
 

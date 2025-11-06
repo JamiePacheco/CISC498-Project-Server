@@ -44,7 +44,7 @@ public class GameLobby {
     @Column(name = "PASSWORD")
     private String password;
 
-    @Column(name = "AUTHOR")
+    @JoinColumn(name = "AUTHOR_ID")
     @ManyToOne(fetch = FetchType.LAZY)
     private LobbyUser author;
 }

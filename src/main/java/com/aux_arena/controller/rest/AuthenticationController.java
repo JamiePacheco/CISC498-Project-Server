@@ -35,7 +35,6 @@ public class AuthenticationController {
     private final JwtUtil jwtUtil;
     @NonNull
     private final AuthenticationServiceImpl authenticationService;
-
     @NonNull
     private final UserServiceImpl userService;
 
@@ -109,7 +108,7 @@ public class AuthenticationController {
         try {
             // save new user;
             LobbyUser lobbyUser = authenticationService.createNewLobbyUser(username, lobbyCode);
-            String token = jwtUtil.generateToken(lobbyUser.getUsername() + lobbyUser.getId());
+            String token = jwtUtil.generateToken(lobbyUser.getUsername() + lobbyUser.getGuestIdentifier());
             Cookie cookie = jwtUtil.generateJwtCookie(token);
             response.addCookie(cookie);
 
