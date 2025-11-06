@@ -9,10 +9,10 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 
 @Data
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public abstract class GameLobbyEvent<T> {
+@Builder
+public class GameLobbyEvent<T> {
     private MessageEvent type;
     private String message;
     private T payload;

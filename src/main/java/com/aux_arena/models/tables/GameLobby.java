@@ -3,8 +3,6 @@ package com.aux_arena.models.tables;
 import com.aux_arena.models.enums.GameLobbyStatus;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.relational.core.mapping.Table;
-
 import java.time.Instant;
 
 @Data
