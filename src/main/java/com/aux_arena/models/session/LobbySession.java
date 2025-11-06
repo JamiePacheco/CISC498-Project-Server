@@ -96,11 +96,8 @@ public class LobbySession {
     }
 
 
-    public void removeUser(LobbyUser lobbyUser) {
-        UserSession removedUser = activeUsers.get(lobbyUser.getLastSocketConnectionId());
-        if (removedUser != null) {
-            activeUsers.remove(lobbyUser.getLastSocketConnectionId());
-        }
+    public void removeUser(String socketId) {
+        activeUsers.remove(socketId);
     }
 
 

@@ -1,5 +1,6 @@
 package com.aux_arena.models.tables;
 
+import com.aux_arena.models.enums.Roles;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -31,7 +32,9 @@ public class LobbyUser {
     @Column(name = "joined_at")
     private Instant joinedAt;
 
-    @Column(name = "last_socket_connection_ id")
+    @Column(name = "last_socket_connection_id")
     private String lastSocketConnectionId;
-    
+
+    @Column(name = "role")
+    private Roles role;
 }

@@ -68,6 +68,7 @@ public class LobbyManager {
                 // remove the inactive users
                 for (UserSession user : lobbySession.getActiveUsers().values()) {
                     if (Duration.between(user.getLastPingTime(), now).compareTo(timeout) > 0) {
+                        lobbySession.removeUser(user.getSessionID());
                         lobbySession.getActiveUsers().remove(user.getSessionID());
                         userSessions.remove(user.getSessionID());
                         inactiveUsers.add(user);

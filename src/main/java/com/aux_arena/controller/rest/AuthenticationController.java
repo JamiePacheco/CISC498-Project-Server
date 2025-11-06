@@ -21,6 +21,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.lang.annotation.Repeatable;
+
 @RestController()
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -103,6 +105,13 @@ public class AuthenticationController {
                                     .build()
                     );
         }
+    }
+
+    @GetMapping()
+    public ResponseEntity<Response<String>> createGuestUser(@RequestParam("username") String username, HttpServletResponse response) {
+
+
+
     }
 
 
