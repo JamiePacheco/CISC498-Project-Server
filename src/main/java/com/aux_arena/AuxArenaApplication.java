@@ -4,6 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 
 @EnableWebSocket
@@ -14,6 +15,11 @@ public class AuxArenaApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(AuxArenaApplication.class, args);
+
+		// User tempUser = (User) User.builder()
+		// .username("Derek")
+		// .password("123")
+		// .build();
 	}
 
 }
