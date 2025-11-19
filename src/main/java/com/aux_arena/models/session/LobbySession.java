@@ -5,6 +5,7 @@ import com.aux_arena.models.tables.GameLobby;
 import com.aux_arena.models.tables.LobbyUser;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -17,6 +18,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class LobbySession {
@@ -31,7 +33,6 @@ public class LobbySession {
     private boolean privateStatus;
     private String password;
     private LobbyUser author;
-
     private Instant lastUpdated;
     private Map<String, UserSession> activeUsers = new ConcurrentHashMap<>();
 

@@ -14,3 +14,4 @@ jwt:
   # change this to environment variable
   secret: 71da9022f52af3373f58b51212176e433fc6c86876f893ca83c14b361ec6c14f
   expiration: 3600000
+

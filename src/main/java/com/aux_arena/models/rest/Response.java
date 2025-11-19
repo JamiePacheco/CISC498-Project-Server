@@ -9,8 +9,6 @@ import org.springframework.http.HttpStatus;
 
 @Data
 @Builder
-@AllArgsConstructor
-@NoArgsConstructor
 public class Response<T> {
     private HttpStatus status;
     private String message;
