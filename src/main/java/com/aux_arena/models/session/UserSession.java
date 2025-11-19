@@ -11,7 +11,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class UserSession {
     private Long userId;
-    private String sessionID;
+    private String sessionId;
     private String displayName;
     private Long lobbyId;
     private Instant lastPingTime;
@@ -20,7 +20,7 @@ public class UserSession {
 
 
     public UserSession(String sessionId) {
-        this.sessionID = sessionId;
+        this.sessionId = sessionId;
     }
 
 }

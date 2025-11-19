@@ -101,10 +101,14 @@ public class AuthenticationController {
     }
 
     @GetMapping("/guest")
-    public ResponseEntity<Response<String>> createGuestUser(@RequestParam("username") String username, @RequestParam("game-lobby-code") String lobbyCode, HttpServletResponse response) {
+    public ResponseEntity<Response<String>> createGuestUser(
+            @RequestParam("username") String username,
+            @RequestParam("game-lobby-code") String lobbyCode,
+            @RequestParam("isAuthor") Boolean isAuthor,
+            HttpServletResponse response) {
         try {
             // save new user;
-            LobbyUser lobbyUser = authenticationService.createNewLobbyUser(username, lobbyCode);
+            LobbyUser lobbyUser = authenticationService.createNewLobbyUser(username, lobbyCode, isAuthor);
             String token = jwtUtil.generateToken(lobbyUser.getUsername() + lobbyUser.getGuestIdentifier());
             Cookie cookie = jwtUtil.generateJwtCookie(token);
             response.addCookie(cookie);

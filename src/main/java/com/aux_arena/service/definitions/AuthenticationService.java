@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 public interface AuthenticationService {
     User createNewUser(User user);
 
-    LobbyUser createNewLobbyUser(String username, String lobbyCode);
+    LobbyUser createNewLobbyUser(String username, String lobbyCode, Boolean isAuthor);
 
     User loadUserByUsername(String email);
 }

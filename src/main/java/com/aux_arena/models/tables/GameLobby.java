@@ -8,6 +8,8 @@ import java.time.Instant;
 @Data
 @Entity
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "GAME_LOBBY")
 public class GameLobby {
 

@@ -40,7 +40,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
-    public LobbyUser createNewLobbyUser(String username, String lobbyCode) {
+    public LobbyUser createNewLobbyUser(String username, String lobbyCode, Boolean isAuthor) {
         GameLobby joinedGameLobby = gameLobbyServiceImpl.getGameLobby(lobbyCode);
         if (joinedGameLobby == null) {
             throw new RuntimeException(String.format("Game lobby '%s' does not exist", lobbyCode));
@@ -55,9 +55,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .joinedAt(Instant.now())
                 .build();
 
-        LobbyUser SavedUser = lobbyUserRepository.save(lobbyUser);
+        LobbyUser savedUser = lobbyUserRepository.save(lobbyUser);
 
-        return SavedUser;
+        if (isAuthor && joinedGameLobby.getAuthor() == null) {
+            joinedGameLobby.setAuthor(savedUser);
+        }
+
+        return savedUser;
     }
 
     @Override
