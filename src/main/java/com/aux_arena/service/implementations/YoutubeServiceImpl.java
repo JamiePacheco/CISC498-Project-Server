@@ -15,11 +15,11 @@ import java.net.URI;
 public class YoutubeServiceImpl implements YoutubeService {
 
     // TODO change this to a env variable
-    @Value("{youtube.api-key}")
-    private String apiKey;
+//    @Value("{youtube.api-key}")
+    private String apiKey = "AIzaSyCWzGzPWjy-9R1lQJsTuQcobsXOenYSaVI";
 
-    @Value("{youtube.url}")
-    private String baseUrl;
+//    @Value("{youtube.url}")
+    private String baseUrl = "https://www.googleapis.com/youtube/v3";
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -30,12 +30,14 @@ public class YoutubeServiceImpl implements YoutubeService {
         String url = UriComponentsBuilder.fromUriString(baseUrl + "/search")
                 .queryParam("part", "snippet")
                 .queryParam("type", "video")
-                .queryParam("videoCategoryId", "10")     // Music category
+//                .queryParam("videoCategoryId", "10")     // Music category
                 .queryParam("videoEmbeddable", "true")   // Must be embeddable
                 .queryParam("maxResults", "20")
                 .queryParam("q", query)
                 .queryParam("key", apiKey)
                 .toUriString();
+
+        log.info("URL: {}", url);
 
         return restTemplate.getForObject(url, JsonNode.class);
     }

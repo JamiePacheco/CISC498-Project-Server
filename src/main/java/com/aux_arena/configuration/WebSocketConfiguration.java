@@ -3,6 +3,7 @@ package com.aux_arena.configuration;
 
 import io.jsonwebtoken.JwtHandler;
 import jakarta.servlet.http.HttpSession;
+import org.apache.tomcat.jni.Library;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
@@ -28,8 +29,9 @@ public class WebSocketConfiguration implements WebSocketMessageBrokerConfigurer 
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic");
+        config.enableSimpleBroker("/topic", "/queue");
         config.setApplicationDestinationPrefixes("/app");
+        config.setUserDestinationPrefix("/user");
     }
 
     @Override
@@ -37,20 +39,7 @@ public class WebSocketConfiguration implements WebSocketMessageBrokerConfigurer 
         registry.addEndpoint("/ws")
                 .addInterceptors(jwtHandshakeInterceptor)
                 .setAllowedOrigins("http://localhost:3000")
-                .setHandshakeHandler(new DefaultHandshakeHandler() {
-                    public boolean beforeHandshake(
-                            ServerHttpRequest request,
-                            ServerHttpResponse response,
-                            WebSocketHandler webSocketHandler,
-                            Map attributes
-                    ) throws Exception {
-                        if (request instanceof ServletServerHttpRequest) {
-                            ServletServerHttpRequest servletRequest = (ServletServerHttpRequest) request;
-                            HttpSession session = servletRequest.getServletRequest().getSession();
-                            attributes.put("sessionId", session.getId());
-                        }
-                        return true;
-                    }
-                }).withSockJS();
+                .setHandshakeHandler(new JwtPrincipleHandshakeHandler())
+                .withSockJS();
     }
 }

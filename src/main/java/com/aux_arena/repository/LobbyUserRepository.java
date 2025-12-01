@@ -6,4 +6,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface LobbyUserRepository extends JpaRepository<LobbyUser, Long> {
+
+    LobbyUser findLobbyUserByGuestIdentifier(String guestIdentifier);
+
 }

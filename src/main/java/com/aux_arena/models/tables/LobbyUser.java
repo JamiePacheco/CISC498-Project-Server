@@ -1,6 +1,7 @@
 package com.aux_arena.models.tables;
 
 import com.aux_arena.models.enums.Roles;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,6 +27,7 @@ public class LobbyUser implements UserDetails {
 
     @JoinColumn(name = "GAME_LOBBY_ID")
     @ManyToOne(fetch = FetchType.LAZY,  cascade = CascadeType.ALL)
+    @JsonBackReference
     private GameLobby gameLobby;
 
     @JoinColumn(name = "USER_ID")
@@ -61,4 +63,6 @@ public class LobbyUser implements UserDetails {
     public String getUsername() {
         return this.nickname;
     }
+
+
 }

@@ -10,6 +10,7 @@ import com.aux_arena.models.socket.Message;
 import com.aux_arena.models.socket.event.GameLobbyEvent;
 import com.aux_arena.models.tables.LobbyUser;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.actuate.web.exchanges.HttpExchange;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -18,6 +19,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.security.Principal;
 import java.time.Instant;
 
 @Slf4j
@@ -37,55 +39,47 @@ public class GameLobbySocketController {
     // used to exhibit better control over where messages and responses are sent.
     private SimpMessagingTemplate messagingTemplate;
 
-    @MessageMapping("/game-lobby.send/{game-lobby-id}")
+    @MessageMapping("game-lobby/join/{game-lobby-id}")
     public void joinGameLobby(
+            Principal principal,
             @DestinationVariable(value = "game-lobby-id") Long gameLobbyId,
             @RequestParam(value = "lobby-password") String lobbyPassword,
-            @Payload LobbyUser lobbyUser,
+            @Payload UserSession userSession,
             MessageHeaders messageHeaders
     ) {
         try {
             String sessionId = (String) messageHeaders.get("simpSessionId");
-            lobbyUser.setLastSocketConnectionId(sessionId);
-            LobbySession joinedLobby = this.lobbyManager.onUserConnect(gameLobbyId, lobbyUser);
+            userSession.setSessionId(sessionId);
+            UserSession newUserSession = this.lobbyManager.onUserConnect(gameLobbyId, userSession, principal);
 
-            // used to send the entire lobby to the new user
-            Message<LobbySession> message = Message.<LobbySession>builder()
-                    .Message(String.format("%s joined game lobby", lobbyUser.getNickname()))
+            Message<UserSession> userSessionMessage = Message.<UserSession>builder()
+                    .Message(String.format("%s joined game lobby", newUserSession.getDisplayName()))
                     .messageStatus(MessageStatus.SUCCESS)
-                    .messageContent(joinedLobby)
-                    .messageType(MessageType.LOBBY_UPDATE)
+                    .messageContent(newUserSession)
+                    .messageType(MessageType.USER_UPDATE)
+                    .sequence(newUserSession.getUserEventSequence())
                     .build();
 
-            messagingTemplate.convertAndSendToUser(sessionId, "/topic/game-lobby." + gameLobbyId, message);
-
-            UserSession joinedUser = joinedLobby.getActiveUsers().get(sessionId);
-
-            GameLobbyEvent<UserSession> newUserEvent = GameLobbyEvent.<UserSession>builder()
-                    .payload(joinedUser)
-                    .type(MessageEvent.USER_JOINED)
-                    .message(String.format("%s had joined", joinedUser.getDisplayName()))
-                    .timestamp(Instant.now())
-                    .build();
-
-            messagingTemplate.convertAndSend("/topic/game-lobby." + gameLobbyId, newUserEvent);
+            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/game-lobby/" + gameLobbyId, userSessionMessage);
 
         } catch (Exception ex) {
-            Message<LobbySession> message = Message.<LobbySession>builder()
-                    .errorMessage("Could not join lobby: " + ex.getMessage())
-                    .messageContent(null)
+            Message<String> message = Message.<String>builder()
+                    .errorMessage(ex.getMessage())
+                    .messageContent(ex.getMessage())
                     .messageStatus(MessageStatus.FAILED)
                     .messageType(MessageType.LOBBY_UPDATE)
+                    .sequence(0L)
                     .build();
 
-            String sessionId = (String) messageHeaders.get("simpSessionId");
-            messagingTemplate.convertAndSendToUser(sessionId, "/queue/errors", message);
+            log.info("Principle Name: {}", principal.getName());
+            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", message);
         }
     }
 
     // this will be the last call before the subscriber is unsubscribed to
-    @MessageMapping("/game-lobby.join/{game-lobby-id}")
+    @MessageMapping("game-lobby/leave/{game-lobby-id}")
     public void leaveGameLobby(
+            Principal principal,
             @DestinationVariable(value = "game-lobby-id") Long gameLobbyId,
             @Payload LobbyUser lobbyUser,
             MessageHeaders messageHeaders
@@ -93,7 +87,7 @@ public class GameLobbySocketController {
         try {
             String sessionId = (String) messageHeaders.get("simpSessionId");
             lobbyUser.setLastSocketConnectionId(sessionId);
-            UserSession disconnectedUser = this.lobbyManager.onUserDisconnect(gameLobbyId, lobbyUser);
+            UserSession disconnectedUser = this.lobbyManager.onUserDisconnect(gameLobbyId, principal);
 
             // we send the current snapshot of the lobby so it's bare details can stored to rejoin (not needed but good for display)
             Message<LobbySession> message = Message.<LobbySession>builder()
@@ -103,7 +97,7 @@ public class GameLobbySocketController {
                     .messageType(MessageType.LOBBY_UPDATE)
                     .build();
 
-            messagingTemplate.convertAndSendToUser(sessionId, "/topic/game-lobby." + gameLobbyId, message);
+            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/game-lobby/" + gameLobbyId, message);
 
             GameLobbyEvent<UserSession> newUserEvent = GameLobbyEvent.<UserSession>builder()
                     .payload(disconnectedUser)
@@ -112,7 +106,7 @@ public class GameLobbySocketController {
                     .timestamp(Instant.now())
                     .build();
 
-            messagingTemplate.convertAndSend("/topic/game-lobby." + gameLobbyId, newUserEvent);
+            messagingTemplate.convertAndSend("/topic/game-lobby/" + gameLobbyId, newUserEvent);
 
         } catch (Exception ex) {
             Message<LobbySession> message = Message.<LobbySession>builder()
@@ -123,7 +117,7 @@ public class GameLobbySocketController {
                     .build();
 
             String sessionId = (String) messageHeaders.get("simpSessionId");
-            messagingTemplate.convertAndSendToUser(sessionId, "/queue/errors", message);
+            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", message);
         }
     }
 

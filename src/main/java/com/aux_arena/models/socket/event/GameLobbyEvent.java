@@ -17,4 +17,5 @@ public class GameLobbyEvent<T> {
     private String message;
     private T payload;
     private Instant timestamp;
+    private long sequence;
 }

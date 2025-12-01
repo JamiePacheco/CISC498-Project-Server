@@ -5,6 +5,7 @@ public enum MessageEvent {
     USER_LEFT,
     USER_CLEANUP,
     LOBBY_UPDATED,
+    NEW_HOST,
     GAME_STARTED,
     GAME_ENDED,
     SCORE_UPDATES,

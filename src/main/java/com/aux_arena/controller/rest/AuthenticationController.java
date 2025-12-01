@@ -100,8 +100,8 @@ public class AuthenticationController {
         }
     }
 
-    @GetMapping("/guest")
-    public ResponseEntity<Response<String>> createGuestUser(
+    @PostMapping("/guest")
+    public ResponseEntity<Response<LobbyUser>> createGuestUser(
             @RequestParam("username") String username,
             @RequestParam("game-lobby-code") String lobbyCode,
             @RequestParam("isAuthor") Boolean isAuthor,
@@ -109,32 +109,28 @@ public class AuthenticationController {
         try {
             // save new user;
             LobbyUser lobbyUser = authenticationService.createNewLobbyUser(username, lobbyCode, isAuthor);
-            String token = jwtUtil.generateToken(lobbyUser.getUsername() + lobbyUser.getGuestIdentifier());
+            String token = jwtUtil.generateToken(lobbyUser.getGuestIdentifier());
             Cookie cookie = jwtUtil.generateJwtCookie(token);
             response.addCookie(cookie);
 
             return ResponseEntity.ok(
-                    Response.<String>builder()
+                    Response.<LobbyUser>builder()
                             .message("Successfully created temp account")
+                            .responseContent(lobbyUser)
                             .status(HttpStatus.ACCEPTED)
                             .build()
             );
         } catch (Exception ex) {
             return ResponseEntity.badRequest()
                     .body(
-                            Response.<String>builder()
-                                    .message("Error creating guest user: ")
-                                    .responseContent(ex.getMessage())
+                            Response.<LobbyUser>builder()
+                                    .message("Error creating guest account: " + ex.getMessage())
+                                    .responseContent(null)
                                     .status(HttpStatus.BAD_REQUEST)
                                     .build()
                     );
         }
     }
-
-
-
-
-
 
 
 }

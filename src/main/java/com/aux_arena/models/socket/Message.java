@@ -20,4 +20,6 @@ public class Message<T> {
     private String Message;
 
     private String errorMessage;
+
+    private long sequence;
 }

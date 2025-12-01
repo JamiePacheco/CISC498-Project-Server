@@ -41,7 +41,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     @Override
     public LobbyUser createNewLobbyUser(String username, String lobbyCode, Boolean isAuthor) {
-        GameLobby joinedGameLobby = gameLobbyServiceImpl.getGameLobby(lobbyCode);
+        GameLobby joinedGameLobby = gameLobbyServiceImpl.getGameLobby(lobbyCode, "");
         if (joinedGameLobby == null) {
             throw new RuntimeException(String.format("Game lobby '%s' does not exist", lobbyCode));
         }
@@ -51,7 +51,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .role(Roles.GUEST)
                 .nickname(username)
                 .user(null)
-                .guestIdentifier(UuidGenerator.generateUuid())
+                .guestIdentifier(username + UuidGenerator.generateUuid())
                 .joinedAt(Instant.now())
                 .build();
 

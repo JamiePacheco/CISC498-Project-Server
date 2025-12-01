@@ -10,7 +10,7 @@ public class LobbyCleanupService {
 
     private LobbyManager lobbyManager;
 
-    @Scheduled(fixedRate = 60_000)
+    @Scheduled(fixedRate = 600_000)
     public void cleanupLobbies() {
         lobbyManager.cleanupInactiveUsers();
     }
