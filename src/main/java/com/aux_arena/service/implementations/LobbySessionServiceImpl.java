@@ -23,10 +23,6 @@ public class LobbySessionServiceImpl implements LobbySessionService {
     @Override
     public LobbySession connectToGameLobby(String lobbyCode, String password, String tempId, String principleUser, LobbyUser lobbyUser) {
         GameLobby gameLobby = gameLobbyService.getGameLobby(lobbyCode, password);
-        if (lobbyUser.getRole() == Roles.GUEST) {
-            // set the guest identifier for jwt generation.
-            lobbyUser.setGuestIdentifier(UuidGenerator.generateUuid());
-        }
 
         LobbySession connectedLobbySession = lobbyManager.loadGameLobby(gameLobby);
 
@@ -36,8 +32,10 @@ public class LobbySessionServiceImpl implements LobbySessionService {
             // we do this here in order to have up-to-date access to this user
             oldConnection.setTempId(tempId);
             oldConnection.setActive(true);
+        } else if (lobbyUser.getRole() == Roles.GUEST) {
+            // set the guest identifier for jwt generation.
+            lobbyUser.setGuestIdentifier(UuidGenerator.generateUuid());
         }
-
 
 //        LobbySession session = lobbyManager.onUserConnect(gameLobby.getId(), lobbyUser, );
         return connectedLobbySession;
