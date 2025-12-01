@@ -10,6 +10,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.security.Principal;
 import java.time.Duration;
@@ -40,8 +42,9 @@ public class LobbySession {
     private boolean active;
 
     private boolean dirty;
-
     private long gameLobbyEventIndex = 1L;
+
+    private static final Logger logger = LoggerFactory.getLogger(LobbySession.class);
 
     public LobbySession(Long id) {
         this.id = id;
@@ -50,6 +53,7 @@ public class LobbySession {
 
     public long getGameLobbyEventIndex() {
         long index = gameLobbyEventIndex;
+        logger.info("Event index has been incremented to {}", index);
         this.gameLobbyEventIndex++;
         return index;
     }
@@ -85,6 +89,7 @@ public class LobbySession {
             addedUser.setLastPingTime(Instant.now());
             addedUser.setIsSpectator(this.getPlayers().size() == maxPlayers);
             addedUser.setActive(true);
+            addedUser.setJoinedAt(Instant.now());
             addedUser.setFunctionMessage("Reconnect User");
 
             if (this.getHost() == null) {
@@ -106,6 +111,7 @@ public class LobbySession {
                 .active(true)
                 .sessionId(userSession.getSessionId())
                 .functionMessage("Connect User")
+                .joinedAt(Instant.now())
                 .build();
 
         if (this.getHost() == null) {
@@ -152,26 +158,26 @@ public class LobbySession {
 
     // TODO fix issue when there are 2+ players and this throws a nullpointerexception
     public UserSession assignHost() {
-        List<UserSession> orderedUsers = this.activeUsers.values().stream().filter(u -> u.getActive()).sorted(
-                Comparator.comparing(u1 -> u1.getJoinedAt())
-        ).toList();
+        Optional<UserSession> oldestUser = activeUsers.values().stream()
+                .filter(u -> {
+                    logger.info("[{}] {} joined at {}",
+                            u.getTempId(),
+                            u.getDisplayName(),
+                            u.getJoinedAt()
+                    );
+                    return u.getActive();
+                })
+                .min(Comparator.comparing(UserSession::getJoinedAt));
 
-        if (orderedUsers.isEmpty()) {
-            return null;
-        }
-
-        UserSession newHost = orderedUsers.get(0);
+        UserSession newHost = oldestUser.get();
         newHost.setHost(true);
         this.host = newHost;
         return newHost;
     }
 
-
     public void removeUser(String socketId) {
         activeUsers.remove(socketId);
     }
-
-
 
     public boolean isInactive() {
         return Duration.between(lastUpdated, Instant.now()).toMillis() > 10;

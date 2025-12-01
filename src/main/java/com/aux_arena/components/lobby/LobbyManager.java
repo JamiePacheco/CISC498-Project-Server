@@ -131,7 +131,7 @@ public class LobbyManager {
                     disconnectedUser.setHost(false);
                     broadcastLobbyEvent(
                             lobbySession,
-                            disconnectedUser,
+                            newHost,
                             String.format("%s promoted to host", newHost.getDisplayName()),
                             MessageEvent.NEW_HOST);
                 }
@@ -194,7 +194,9 @@ public class LobbyManager {
                 .message(message)
                 .payload(eventContent)
                 .timestamp(Instant.now())
-                .sequence(lobbySession.getGameLobbyEventIndex())
+                .sequence(
+                        modifyLobbyAtomically(lobbySession.getId(), lobby -> lobby.getGameLobbyEventIndex())
+                )
                 .build();
 
         messagingTemplate.convertAndSend("/topic/game-lobby/" + lobbySession.getId(), lobbyEvent);
