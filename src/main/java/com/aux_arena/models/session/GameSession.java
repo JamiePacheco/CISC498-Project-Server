@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Data
 @Builder
@@ -22,7 +23,27 @@ public class GameSession {
     private Instant createdAt;
     private Instant lastUpdated;
 
-    private Map<String, PlayerState> players;
+    private Map<Long, PlayerState> players = new ConcurrentHashMap<>();
 
     private RoundSession currentRound;
+
+    public GameSession(LobbySession lobbySession) {
+
+        // add based attributes for the game session
+        this.lobbyId = lobbySession.getId();
+        this.gameStatus = GameStatus.STARTING;
+        this.createdAt = Instant.now();
+        this.lastUpdated = Instant.now();
+
+        // add a new player state for each user session within the current game lobby
+        for (UserSession userSession : lobbySession.getActiveUsers().values()) {
+            PlayerState newPlayerState = PlayerState.builder()
+                    .ready(true)
+                    .score(0L)
+                    .userId(userSession.getUserId())
+                    .build();
+
+            players.put(userSession.getUserId(), newPlayerState);
+        }
+    }
 }

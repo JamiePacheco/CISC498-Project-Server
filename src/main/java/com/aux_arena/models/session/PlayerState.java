@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class PlayerState {
-    private Long userId;
+    private Long userId; // this should link to a user session variable
     private Long score;
     private boolean ready;
 }
