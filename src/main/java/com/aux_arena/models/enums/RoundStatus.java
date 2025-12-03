@@ -1,8 +1,10 @@
 package com.aux_arena.models.enums;
 
 public enum RoundStatus {
-    VOTING,
+    WRITING_PROMPT,
     CHOOSING_SONG,
+    PRESENTING,
+    VOTING,
+    SCORING,
     WAITING,
-    PRESENTING
 }
