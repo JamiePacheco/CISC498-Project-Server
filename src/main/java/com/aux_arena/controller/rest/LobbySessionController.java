@@ -47,6 +47,8 @@ public class LobbySessionController {
             String jwt = jwtUtil.extractJwtFromCookie(request);
             String username = jwt == null ? null : jwtUtil.extractUsername(jwt);
 
+            log.info("Connecting user with username [{}] and principle [{}]", username);
+
             LobbySession gameLobby = lobbySessionService.connectToGameLobby(
                     lobbyCode,
                     password,
@@ -63,6 +65,7 @@ public class LobbySessionController {
                     // generate a cookie that lasts for 30 minutes (extend when the game actually begins)
                     String token = jwtUtil.generateToken(lobbyUser.getGuestIdentifier(), 30 * 60_000);
                     Cookie cookie = jwtUtil.generateJwtCookie(token);
+                    log.info("Cookie created for user [{}] with guest identifier [{}]", username, lobbyUser.getGuestIdentifier());
                     response.addCookie(cookie);
                 } else {
                     log.info("User {} [{}] is reconnecting", username, jwt);
@@ -98,20 +101,21 @@ public class LobbySessionController {
     //    populate a new game session into game session manager
     //    create an initial round to start the game with
 
+
+    // this sends the most recent version of the game lobby with all updated fields (...should all users call this endpoint?)
     @PostMapping("/start-lobby")
     public ResponseEntity<Response<List<LobbyUser>>> startGameLobby(
-            @RequestParam("lobby-id") String lobbyCode,
+            @RequestParam("lobby-id") Long lobbyId,
             HttpServletResponse response,
             HttpServletRequest request
     ) {
         try {
-
-
+            List<LobbyUser> savedUsers = lobbySessionService.startGameLobby(lobbyId);
 
             return ResponseEntity.ok(
                     Response.<List<LobbyUser>>builder()
-                            .message("Successfully connected to lobby " + lobbyCode)
-                            .responseContent(gameLobby)
+                            .message("Successfully Started Lobby With " + savedUsers.size() + " Users.")
+                            .responseContent(savedUsers)
                             .status(HttpStatus.ACCEPTED)
                             .build()
             );

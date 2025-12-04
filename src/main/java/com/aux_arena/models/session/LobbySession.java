@@ -158,6 +158,7 @@ public class LobbySession {
 
     // TODO fix issue when there are 2+ players and this throws a nullpointerexception
     public UserSession assignHost() {
+        logger.info("Removing {} as the host", host);
         Optional<UserSession> oldestUser = activeUsers.values().stream()
                 .filter(u -> {
                     logger.info("[{}] {} joined at {}",
@@ -169,6 +170,7 @@ public class LobbySession {
                 })
                 .min(Comparator.comparing(UserSession::getJoinedAt));
 
+        // TDOO fix this for when there is only a single user
         UserSession newHost = oldestUser.get();
         newHost.setHost(true);
         this.host = newHost;

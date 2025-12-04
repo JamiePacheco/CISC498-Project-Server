@@ -23,7 +23,8 @@ public class GameSession {
     private Instant createdAt;
     private Instant lastUpdated;
 
-    private Map<Long, PlayerState> players = new ConcurrentHashMap<>();
+    // uses the same principle id
+    private Map<String, PlayerState> players = new ConcurrentHashMap<>();
 
     private RoundSession currentRound;
 
@@ -36,14 +37,14 @@ public class GameSession {
         this.lastUpdated = Instant.now();
 
         // add a new player state for each user session within the current game lobby
-        for (UserSession userSession : lobbySession.getActiveUsers().values()) {
+        for (String key : lobbySession.getActiveUsers().keySet()) {
             PlayerState newPlayerState = PlayerState.builder()
                     .ready(true)
                     .score(0L)
-                    .userId(userSession.getUserId())
+                    .userId(lobbySession.getActiveUsers().get(key).getUserId())
                     .build();
 
-            players.put(userSession.getUserId(), newPlayerState);
+            players.put(key, newPlayerState);
         }
     }
 }

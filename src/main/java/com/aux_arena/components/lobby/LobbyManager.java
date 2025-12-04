@@ -2,6 +2,7 @@ package com.aux_arena.components.lobby;
 
 import com.aux_arena.models.enums.GameLobbyStatus;
 import com.aux_arena.models.enums.message.MessageEvent;
+import com.aux_arena.models.session.GameSession;
 import com.aux_arena.models.session.LobbySession;
 import com.aux_arena.models.session.UserSession;
 import com.aux_arena.models.socket.event.GameLobbyEvent;
@@ -24,15 +25,21 @@ import java.util.function.Function;
 @Component
 @Data
 public class LobbyManager {
-    private final Map<Long, LobbySession> lobbies = new ConcurrentHashMap<>();
-    private final Map<String, UserSession> userSessions = new ConcurrentHashMap<>();
 
-    private static final Logger log = LoggerFactory.getLogger(LobbyManager.class);
+    // mappings for lobbies and users
+    private final Map<Long, LobbySession> lobbies = new ConcurrentHashMap<>();
+    // TODO probably remove this because it is pretty redundant at this point
+    private final Map<String, UserSession> userSessions = new ConcurrentHashMap<>();
+    // mutex locks for lobbies
+    private final ConcurrentHashMap<Long, ReentrantLock> lobbyLocks = new ConcurrentHashMap<>();
 
     // for sending messages to lobby channel
     private SimpMessagingTemplate messagingTemplate;
 
-    private final ConcurrentHashMap<Long, ReentrantLock> lobbyLocks = new ConcurrentHashMap<>();
+    private GameManager gameManager;
+
+    private static final Logger log = LoggerFactory.getLogger(LobbyManager.class);
+
 
     public LobbyManager(SimpMessagingTemplate messagingTemplate) {
 //        this.gameLobbyService = gameLobbyService;
@@ -76,8 +83,8 @@ public class LobbyManager {
             lobbySession.setStatus(GameLobbyStatus.GAME_IN_PROGRESS);
             lobbySession.setLastUpdated(Instant.now());
 
-
-
+            // new game session should be populated within memory
+            gameManager.loadGameSession(lobbySession);
             return lobbySession;
         });
     }

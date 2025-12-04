@@ -1,10 +1,10 @@
 package com.aux_arena.service.definitions;
 
 import com.aux_arena.models.session.LobbySession;
-import com.aux_arena.models.session.UserSession;
-import com.aux_arena.models.tables.GameLobby;
 import com.aux_arena.models.tables.LobbyUser;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public interface LobbySessionService {
@@ -17,7 +17,7 @@ public interface LobbySessionService {
             LobbyUser lobbyUser
     );
 
-    void startGameLobby(
+    List<LobbyUser> startGameLobby(
             Long lobbyId
     );
 }

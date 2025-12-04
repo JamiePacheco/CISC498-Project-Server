@@ -8,4 +8,6 @@ import org.springframework.stereotype.Service;
 
 public interface UserService extends UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException;
+
+    public User findUser(Long id);
 }
