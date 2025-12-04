@@ -17,6 +17,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/lobby-session")
 public class LobbySessionController {
@@ -87,7 +89,44 @@ public class LobbySessionController {
         }
     }
 
+    // TODO finish implementing start lobby endpoint
+    //    transition the state of the gamelobby
+    // this needs to be sent to the frontend through the sockets (game lobby update)
+    // navigate to the game lobby page
+    //    save all the users from memory to table objects (for persistence)
+    // when the users transition to the game page they should call a new rest endpoint to get the game session (renew jwt)
+    //    populate a new game session into game session manager
+    //    create an initial round to start the game with
 
+    @PostMapping("/start-lobby")
+    public ResponseEntity<Response<List<LobbyUser>>> startGameLobby(
+            @RequestParam("lobby-id") String lobbyCode,
+            HttpServletResponse response,
+            HttpServletRequest request
+    ) {
+        try {
+
+
+
+            return ResponseEntity.ok(
+                    Response.<List<LobbyUser>>builder()
+                            .message("Successfully connected to lobby " + lobbyCode)
+                            .responseContent(gameLobby)
+                            .status(HttpStatus.ACCEPTED)
+                            .build()
+            );
+        } catch (Exception ex) {
+            return ResponseEntity
+                    .badRequest()
+                    .body(
+                            Response.<List<LobbyUser>>builder()
+                                    .message(ex.getMessage())
+                                    .responseContent(null)
+                                    .status(HttpStatus.CONFLICT)
+                                    .build()
+                    );
+        }
+    }
 
 
 }

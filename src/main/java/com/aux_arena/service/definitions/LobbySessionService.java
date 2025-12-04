@@ -9,6 +9,15 @@ import org.springframework.stereotype.Service;
 @Service
 public interface LobbySessionService {
 
-    LobbySession connectToGameLobby(String lobbyCode, String password, String tempId, String principleUser, LobbyUser lobbyUser);
+    LobbySession connectToGameLobby(
+            String lobbyCode,
+            String password,
+            String tempId,
+            String principleUser,
+            LobbyUser lobbyUser
+    );
 
+    void startGameLobby(
+            Long lobbyId
+    );
 }

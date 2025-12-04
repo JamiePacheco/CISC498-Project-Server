@@ -1,5 +1,6 @@
 package com.aux_arena.components.lobby;
 
+import com.aux_arena.models.enums.GameLobbyStatus;
 import com.aux_arena.models.enums.message.MessageEvent;
 import com.aux_arena.models.session.LobbySession;
 import com.aux_arena.models.session.UserSession;
@@ -63,6 +64,22 @@ public class LobbyManager {
             lobbies.put(gameLobby.getId(), lobbySession);
         }
         return lobbySession;
+    }
+
+    // TODO finish implementing starting game lobby
+    public LobbySession startGameLobby(Long lobbyId) {
+        return modifyLobbyAtomically(lobbyId, lobbySession -> {
+
+            if (lobbySession == null) {
+                throw new RuntimeException("Error starting game lobby: Game lobby does not exist within memory");
+            }
+            lobbySession.setStatus(GameLobbyStatus.GAME_IN_PROGRESS);
+            lobbySession.setLastUpdated(Instant.now());
+
+
+
+            return lobbySession;
+        });
     }
 
     // TODO get user from database (create if no user exists) then add it to the current lobby

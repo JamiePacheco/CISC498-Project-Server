@@ -1,6 +1,7 @@
 package com.aux_arena.service.implementations;
 
 import com.aux_arena.components.lobby.LobbyManager;
+import com.aux_arena.models.enums.GameLobbyStatus;
 import com.aux_arena.models.enums.Roles;
 import com.aux_arena.models.session.LobbySession;
 import com.aux_arena.models.session.UserSession;
@@ -11,6 +12,8 @@ import com.aux_arena.service.definitions.LobbySessionService;
 import com.aux_arena.utility.UuidGenerator;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.time.Instant;
 
 @Service
 @AllArgsConstructor
@@ -39,6 +42,17 @@ public class LobbySessionServiceImpl implements LobbySessionService {
 
 //        LobbySession session = lobbyManager.onUserConnect(gameLobby.getId(), lobbyUser, );
         return connectedLobbySession;
+    }
+
+    // TODO finish implementing starting game lobby
+    @Override
+    public void startGameLobby(Long lobbyId) {
+
+        LobbySession lobbySession = lobbyManager.startGameLobby(lobbyId);
+
+
+
+
     }
 
 }
