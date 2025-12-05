@@ -37,12 +37,14 @@ public class LobbySession {
     private LobbyUser author;
     private Instant lastUpdated;
     private Map<String, UserSession> activeUsers = new ConcurrentHashMap<>();
+    private List<GameLobbyMessage> messages = new ArrayList<>();
     private UserSession host;
 
     private boolean active;
 
     private boolean dirty;
     private long gameLobbyEventIndex = 1L;
+    private long gameLobbyMessageIndex = 1L;
 
     private static final Logger logger = LoggerFactory.getLogger(LobbySession.class);
 
@@ -57,6 +59,22 @@ public class LobbySession {
         this.gameLobbyEventIndex++;
         return index;
     }
+
+    public long getGameLobbyMessageIndex() {
+        long index = gameLobbyMessageIndex;
+        logger.info("Message index has been incremented to {}", index);
+        this.gameLobbyMessageIndex++;
+        return index;
+    }
+
+
+    public GameLobbyMessage addNewMessage(GameLobbyMessage gameLobbyMessage) {
+        gameLobbyMessage.setMessageIndex(this.getGameLobbyMessageIndex());
+        this.messages.add(gameLobbyMessage);
+        logger.info("New message has entered the domain [{}]: {}", gameLobbyMessage.getAuthor(), gameLobbyMessage.getTextMessage());
+        return gameLobbyMessage;
+    }
+
 
     public List<UserSession> getPlayers() {
         return activeUsers

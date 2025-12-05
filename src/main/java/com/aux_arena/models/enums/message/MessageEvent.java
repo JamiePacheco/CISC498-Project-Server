@@ -13,4 +13,5 @@ public enum MessageEvent {
     PROMPT_ASSIGNED,
     SUBMISSION_RECEIVED,
     VOTE_UPDATES,
+    NEW_MESSAGE
 }

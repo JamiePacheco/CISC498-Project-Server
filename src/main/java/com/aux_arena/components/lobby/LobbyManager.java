@@ -2,6 +2,7 @@ package com.aux_arena.components.lobby;
 
 import com.aux_arena.models.enums.GameLobbyStatus;
 import com.aux_arena.models.enums.message.MessageEvent;
+import com.aux_arena.models.session.GameLobbyMessage;
 import com.aux_arena.models.session.GameSession;
 import com.aux_arena.models.session.LobbySession;
 import com.aux_arena.models.session.UserSession;
@@ -139,6 +140,14 @@ public class LobbyManager {
         });
     }
 
+    public void sendGameLobbyMessage(Long lobbyId, GameLobbyMessage gameLobbyMessage, Principal principal) {
+        modifyLobbyAtomically(lobbyId, lobbySession -> {
+            GameLobbyMessage newMessage = lobbySession.addNewMessage(gameLobbyMessage);
+            broadcastLobbyMessage(lobbySession, newMessage);
+            return lobbySession;
+        });
+    }
+
     public void onUserDisconnect(Principal principal) {
         Long lobbyId = userSessions.get(principal.getName()).getLobbyId();
 
@@ -225,6 +234,19 @@ public class LobbyManager {
 
         messagingTemplate.convertAndSend("/topic/game-lobby/" + lobbySession.getId(), lobbyEvent);
     }
+
+    private void broadcastLobbyMessage(LobbySession lobbySession, GameLobbyMessage gameLobbyMessage) {
+        GameLobbyEvent<GameLobbyMessage> lobbyEvent = GameLobbyEvent.<GameLobbyMessage>builder()
+                .type(MessageEvent.NEW_MESSAGE)
+                .message(String.format("%s sent a message", gameLobbyMessage.getAuthor()))
+                .payload(gameLobbyMessage)
+                .timestamp(Instant.now())
+                .sequence(gameLobbyMessage.getMessageIndex())
+                .build();
+
+        messagingTemplate.convertAndSend("/topic/game-lobby/message" + lobbySession.getId(), lobbyEvent);
+    }
+
 
     // TODO write a function to clean up inactive lobbies.
 }

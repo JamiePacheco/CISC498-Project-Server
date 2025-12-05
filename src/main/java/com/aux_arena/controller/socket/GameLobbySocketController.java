@@ -4,6 +4,7 @@ import com.aux_arena.components.lobby.LobbyManager;
 import com.aux_arena.models.enums.message.MessageEvent;
 import com.aux_arena.models.enums.message.MessageStatus;
 import com.aux_arena.models.enums.message.MessageType;
+import com.aux_arena.models.session.GameLobbyMessage;
 import com.aux_arena.models.session.LobbySession;
 import com.aux_arena.models.session.UserSession;
 import com.aux_arena.models.socket.Message;
@@ -72,6 +73,28 @@ public class GameLobbySocketController {
                     .build();
 
             log.info("Principle Name: {}", principal.getName());
+            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", message);
+        }
+    }
+
+    @MessageMapping("game-lobby/send-message/{game-lobby-id}")
+    public void sendGameLobbyMessage(
+            Principal principal,
+            @DestinationVariable(value = "game-lobby-id") Long gameLobbyId,
+            @Payload GameLobbyMessage gameLobbyMessage,
+            MessageHeaders messageHeaders
+    ) {
+        try {
+            this.lobbyManager.sendGameLobbyMessage(gameLobbyId, gameLobbyMessage, principal);
+        } catch (Exception ex) {
+            Message<String> message = Message.<String>builder()
+                    .errorMessage(ex.getMessage())
+                    .messageContent(ex.getMessage())
+                    .messageStatus(MessageStatus.FAILED)
+                    .messageType(MessageType.LOBBY_UPDATE)
+                    .sequence(0L)
+                    .build();
+
             messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", message);
         }
     }
