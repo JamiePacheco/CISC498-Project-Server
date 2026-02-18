@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: aux-area
+  config:
+    import: optional:file:.env-local[.properties]
+#  datasource:
+#    url: jdbc:h2:file:./data/h2-data;DB_CLOSE_ON_EXIT=FALSE;IFEXISTS=TRUE;DB_CLOSE_DELAY=-1
+#    username: sa
+#    password:
+server:
+  port: 8080
+
+jwt:
+  # change this to environment variable
+  secret: 71da9022f52af3373f58b51212176e433fc6c86876f893ca83c14b361ec6c14f
+  expiration: 3600000
+
+#
