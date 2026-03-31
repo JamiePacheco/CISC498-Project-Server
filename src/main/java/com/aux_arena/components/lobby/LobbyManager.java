@@ -120,6 +120,15 @@ public class LobbyManager {
                     MessageEvent.USER_JOINED
             );
 
+            // Send new connection notification to all users
+            sendGameLobbyMessage(
+                    lobbyId,
+                    GameLobbyMessage.builder()
+                            .textMessage(String.format("%s has connected", addedUser.getDisplayName()))
+                            .author("SYSTEM")
+                            .build(),
+                    null
+            );
 
             return addedUser;
         });
@@ -136,6 +145,16 @@ public class LobbyManager {
                 log.info(userSession.toString());
             }
 
+            // Send disconnection notification to all users
+            sendGameLobbyMessage(
+                    lobbyId,
+                    GameLobbyMessage.builder()
+                            .textMessage(String.format("%s has disconnected", deactivatedUser.getDisplayName()))
+                            .author("SYSTEM")
+                            .build(),
+                    null
+            );
+
             return deactivatedUser;
         });
     }
@@ -149,6 +168,9 @@ public class LobbyManager {
     }
 
     public void onUserDisconnect(Principal principal) {
+
+        if (userSessions.get(principal.getName()) == null) return;
+
         Long lobbyId = userSessions.get(principal.getName()).getLobbyId();
 
         // to avoid race conditions we utilize an atomic function to access the in-memory lobby
@@ -167,6 +189,16 @@ public class LobbyManager {
                             newHost,
                             String.format("%s promoted to host", newHost.getDisplayName()),
                             MessageEvent.NEW_HOST);
+
+                    // Send new host notification to all users
+                    sendGameLobbyMessage(
+                            lobbyId,
+                            GameLobbyMessage.builder()
+                                    .textMessage(String.format("%s promoted to host", newHost.getDisplayName()))
+                                    .author("SYSTEM")
+                                    .build(),
+                            null
+                    );
                 }
             }
 
@@ -174,7 +206,18 @@ public class LobbyManager {
                     lobbySession,
                     disconnectedUser,
                     String.format("%s disconnected", disconnectedUser.getDisplayName()),
-                    MessageEvent.USER_LEFT);
+                    MessageEvent.USER_LEFT
+            );
+
+            // Send new host notification to all users
+            sendGameLobbyMessage(
+                    lobbyId,
+                    GameLobbyMessage.builder()
+                            .textMessage(String.format("%s has disconnected", disconnectedUser.getDisplayName()))
+                            .author("SYSTEM")
+                            .build(),
+                    null
+            );
 
             return null;
         });
@@ -182,25 +225,23 @@ public class LobbyManager {
 
     public void cleanupInactiveUsers() {
         Instant now = Instant.now();
-        Duration timeout = Duration.ofMinutes(2);
+        Duration timeout = Duration.ofSeconds(30);
 
         // TODO parallelize this jawn (textbook definition of divide and conquer...)
         for (Long lobbySessionId : lobbies.keySet()) {
             // atomically access the game lobby and send the corresponding event
             modifyLobbyAtomically(lobbySessionId, lobbySession -> {
+                List<UserSession> removedPlayers = new ArrayList<>();
                 if (!lobbySession.getActiveUsers().isEmpty()) {
-                    //get the inactive users
-                    List<UserSession> inactiveUsers = new  ArrayList<>();
-
                     // remove the inactive users
                     for (String principle : lobbySession.getActiveUsers().keySet()) {
                         UserSession userSession = lobbySession.getActiveUsers().get(principle);
-                        log.info("Last pinged user: {}", userSession.getLastPingTime());
-                        if (Duration.between(userSession.getLastPingTime(), now).compareTo(timeout) > 0) {
+                        log.info("Last pinged user [{} : {}]", userSession.getDisplayName(), userSession.getLastPingTime());
+                        if (!userSession.getActive() && Duration.between(userSession.getLastPingTime(), now).compareTo(timeout) > 0) {
+                            removedPlayers.add(lobbySession.getActiveUsers().get(principle));
                             lobbySession.removeUser(principle);
                             lobbySession.getActiveUsers().remove(principle);
                             userSessions.remove(principle);
-                            inactiveUsers.add(userSession);
                         }
                     }
 
@@ -211,9 +252,19 @@ public class LobbyManager {
                     // broadcast the disconnected users to the respective lobby
                     broadcastLobbyEvent(
                             lobbySession,
-                            inactiveUsers,
+                            removedPlayers,
                             "Inactive players removed",
                             MessageEvent.USER_CLEANUP);
+
+                    // broadcast notification message of user clean up to lobby
+                    sendGameLobbyMessage(
+                            lobbySessionId,
+                            GameLobbyMessage.builder()
+                                    .textMessage(String.format("Removed %d inactive users", removedPlayers.size()))
+                                    .author("SYSTEM")
+                                    .build(),
+                            null
+                    );
                 }
                 return null;
             });
@@ -232,6 +283,8 @@ public class LobbyManager {
                 )
                 .build();
 
+        log.info("[Sending message {} to game lobby {}]", lobbyEvent.getType(), lobbySession.getId());
+
         messagingTemplate.convertAndSend("/topic/game-lobby/" + lobbySession.getId(), lobbyEvent);
     }
 
@@ -244,7 +297,9 @@ public class LobbyManager {
                 .sequence(gameLobbyMessage.getMessageIndex())
                 .build();
 
-        messagingTemplate.convertAndSend("/topic/game-lobby/message" + lobbySession.getId(), lobbyEvent);
+        log.info("[Sending message {} from {} to game lobby {}]", lobbyEvent.getType(), gameLobbyMessage.getAuthor(), lobbySession.getId());
+
+        messagingTemplate.convertAndSend("/topic/game-lobby/message/" + lobbySession.getId(), lobbyEvent);
     }
 
 

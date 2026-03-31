@@ -13,6 +13,7 @@ import com.aux_arena.utility.UuidGenerator;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.security.Principal;
 import java.util.List;
 
 @Service
@@ -35,11 +36,11 @@ public class LobbySessionServiceImpl implements LobbySessionService {
 
         if (oldConnection != null) {
             // we do this here in order to have up-to-date access to this user
-            oldConnection.setTempId(tempId);
             oldConnection.setActive(true);
+            lobbyUser.setGuestIdentifier(oldConnection.getTempId());
         } else if (lobbyUser.getRole() == Roles.GUEST) {
             // set the guest identifier for jwt generation.
-            lobbyUser.setGuestIdentifier(UuidGenerator.generateUuid());
+            lobbyUser.setGuestIdentifier(tempId);
         }
 
 //        LobbySession session = lobbyManager.onUserConnect(gameLobby.getId(), lobbyUser, );

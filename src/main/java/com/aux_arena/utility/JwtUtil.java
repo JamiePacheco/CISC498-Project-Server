@@ -58,7 +58,7 @@ public class JwtUtil {
 
     public Cookie generateJwtCookie(String jwt) {
         Cookie cookie = new Cookie("jwt", jwt);
-        cookie.setHttpOnly(true);
+        cookie.setHttpOnly(false);
         cookie.setSecure(true);
         cookie.setPath("/");
         cookie.setMaxAge(24 * 60 * 60);
@@ -75,6 +75,4 @@ public class JwtUtil {
         }
         return null;
     }
-
-
 }

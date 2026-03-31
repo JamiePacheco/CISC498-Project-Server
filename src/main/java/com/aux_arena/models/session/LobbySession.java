@@ -70,6 +70,7 @@ public class LobbySession {
 
     public GameLobbyMessage addNewMessage(GameLobbyMessage gameLobbyMessage) {
         gameLobbyMessage.setMessageIndex(this.getGameLobbyMessageIndex());
+        gameLobbyMessage.setTimestamp(Instant.now());
         this.messages.add(gameLobbyMessage);
         logger.info("New message has entered the domain [{}]: {}", gameLobbyMessage.getAuthor(), gameLobbyMessage.getTextMessage());
         return gameLobbyMessage;
@@ -102,7 +103,7 @@ public class LobbySession {
 
         addedUser = this.activeUsers.get(principal.getName());
         if (addedUser != null) {
-            addedUser.setTempId(userSession.getTempId());
+            addedUser.setTempId(principal.getName());
             addedUser.setSessionId(userSession.getSessionId());
             addedUser.setLastPingTime(Instant.now());
             addedUser.setIsSpectator(this.getPlayers().size() == maxPlayers);
@@ -167,7 +168,7 @@ public class LobbySession {
         UserSession connectedUser = activeUsers.get(principleName);
         if (connectedUser != null) {
             connectedUser.setLastPingTime(Instant.now());
-            connectedUser.setIsSpectator(false);
+            connectedUser.setIsSpectator(true);
             connectedUser.setActive(false);
             connectedUser.setFunctionMessage("Disconnect User");
         }
@@ -188,15 +189,21 @@ public class LobbySession {
                 })
                 .min(Comparator.comparing(UserSession::getJoinedAt));
 
-        // TDOO fix this for when there is only a single user
-        UserSession newHost = oldestUser.get();
-        newHost.setHost(true);
-        this.host = newHost;
-        return newHost;
+        // TODO fix this for when there is only a single user
+
+        if (oldestUser.isPresent()) {
+            UserSession newHost = oldestUser.get();
+            newHost.setHost(true);
+            this.host = newHost;
+            return newHost;
+        }
+
+        this.host = null;
+        return null;
     }
 
-    public void removeUser(String socketId) {
-        activeUsers.remove(socketId);
+    public void removeUser(String principle) {
+        activeUsers.remove(principle);
     }
 
     public boolean isInactive() {

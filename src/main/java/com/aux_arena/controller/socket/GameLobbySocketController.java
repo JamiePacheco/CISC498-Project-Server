@@ -10,6 +10,7 @@ import com.aux_arena.models.session.UserSession;
 import com.aux_arena.models.socket.Message;
 import com.aux_arena.models.socket.event.GameLobbyEvent;
 import com.aux_arena.models.tables.LobbyUser;
+import io.jsonwebtoken.Jwt;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.actuate.web.exchanges.HttpExchange;
 import org.springframework.messaging.MessageHeaders;
@@ -17,6 +18,7 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -49,6 +51,7 @@ public class GameLobbySocketController {
             MessageHeaders messageHeaders
     ) {
         try {
+
             String sessionId = (String) messageHeaders.get("simpSessionId");
             userSession.setSessionId(sessionId);
             UserSession newUserSession = this.lobbyManager.onUserConnect(gameLobbyId, userSession, principal);
@@ -61,8 +64,8 @@ public class GameLobbySocketController {
                     .sequence(newUserSession.getUserEventSequence())
                     .build();
 
+            log.info("Sending message to user [{} ({})] ", principal.getName(), newUserSession.getDisplayName());
             messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/game-lobby/" + gameLobbyId, userSessionMessage);
-
         } catch (Exception ex) {
             Message<String> message = Message.<String>builder()
                     .errorMessage(ex.getMessage())
@@ -86,6 +89,22 @@ public class GameLobbySocketController {
     ) {
         try {
             this.lobbyManager.sendGameLobbyMessage(gameLobbyId, gameLobbyMessage, principal);
+
+            UserSession user = lobbyManager
+                    .getLobbies()
+                    .get(gameLobbyId)
+                    .getActiveUsers()
+                    .get(principal.getName());
+
+            Message<GameLobbyMessage> chatMessageConfirmation = Message.<GameLobbyMessage>builder()
+                    .Message(String.format("Your (%s) message was successfully sent", user.getDisplayName()))
+                    .messageStatus(MessageStatus.SUCCESS)
+                    .messageContent(gameLobbyMessage)
+                    .messageType(MessageType.CHAT_UPDATE)
+                    .sequence(lobbyManager.getLobbies().get(gameLobbyId).getGameLobbyMessageIndex())
+                    .build();
+
+            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", chatMessageConfirmation);
         } catch (Exception ex) {
             Message<String> message = Message.<String>builder()
                     .errorMessage(ex.getMessage())
