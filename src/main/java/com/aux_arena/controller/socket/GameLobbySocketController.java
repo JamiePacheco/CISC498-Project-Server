@@ -1,14 +1,18 @@
 package com.aux_arena.controller.socket;
 
+import com.aux_arena.components.lobby.GameManager;
+import com.aux_arena.components.lobby.GameSessionManager;
 import com.aux_arena.components.lobby.LobbyManager;
 import com.aux_arena.models.enums.message.MessageEvent;
 import com.aux_arena.models.enums.message.MessageStatus;
 import com.aux_arena.models.enums.message.MessageType;
 import com.aux_arena.models.session.GameLobbyMessage;
+import com.aux_arena.models.session.GameSession;
 import com.aux_arena.models.session.LobbySession;
 import com.aux_arena.models.session.UserSession;
 import com.aux_arena.models.socket.Message;
 import com.aux_arena.models.socket.event.GameLobbyEvent;
+import com.aux_arena.models.tables.GameLobby;
 import com.aux_arena.models.tables.LobbyUser;
 import io.jsonwebtoken.Jwt;
 import lombok.extern.slf4j.Slf4j;
@@ -29,13 +33,16 @@ import java.time.Instant;
 @Controller
 public class GameLobbySocketController {
 
-    private LobbyManager lobbyManager;
+
+
+    // TODO use gameManager to implement all functionality within controller methods.
+    private GameManager gameManager;
 
     public GameLobbySocketController(
-            LobbyManager lobbyManager,
+            GameManager gameManager,
             SimpMessagingTemplate messagingTemplate
     ) {
-        this.lobbyManager = lobbyManager;
+        this.gameManager = gameManager;
         this.messagingTemplate = messagingTemplate;
     }
 
@@ -54,7 +61,7 @@ public class GameLobbySocketController {
 
             String sessionId = (String) messageHeaders.get("simpSessionId");
             userSession.setSessionId(sessionId);
-            UserSession newUserSession = this.lobbyManager.onUserConnect(gameLobbyId, userSession, principal);
+            UserSession newUserSession = this.gameManager.connectUser(gameLobbyId, userSession, principal);
 
             Message<UserSession> userSessionMessage = Message.<UserSession>builder()
                     .Message(String.format("%s joined game lobby", newUserSession.getDisplayName()))
@@ -88,20 +95,16 @@ public class GameLobbySocketController {
             MessageHeaders messageHeaders
     ) {
         try {
-            this.lobbyManager.sendGameLobbyMessage(gameLobbyId, gameLobbyMessage, principal);
+            this.gameManager.sendLobbyMessage(gameLobbyId, gameLobbyMessage, principal);
 
-            UserSession user = lobbyManager
-                    .getLobbies()
-                    .get(gameLobbyId)
-                    .getActiveUsers()
-                    .get(principal.getName());
+            UserSession user = gameManager.getUser(gameLobbyId, principal);
 
             Message<GameLobbyMessage> chatMessageConfirmation = Message.<GameLobbyMessage>builder()
                     .Message(String.format("Your (%s) message was successfully sent", user.getDisplayName()))
                     .messageStatus(MessageStatus.SUCCESS)
                     .messageContent(gameLobbyMessage)
                     .messageType(MessageType.CHAT_UPDATE)
-                    .sequence(lobbyManager.getLobbies().get(gameLobbyId).getGameLobbyMessageIndex())
+                    .sequence(user.getUserEventSequence())
                     .build();
 
             messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", chatMessageConfirmation);
@@ -129,7 +132,7 @@ public class GameLobbySocketController {
         try {
             String sessionId = (String) messageHeaders.get("simpSessionId");
             lobbyUser.setLastSocketConnectionId(sessionId);
-            UserSession disconnectedUser = this.lobbyManager.onUserDisconnect(gameLobbyId, principal);
+            UserSession disconnectedUser = this.gameManager.disconnectUser(gameLobbyId, principal);
 
             // we send the current snapshot of the lobby so it's bare details can stored to rejoin (not needed but good for display)
             Message<LobbySession> message = Message.<LobbySession>builder()
@@ -162,6 +165,39 @@ public class GameLobbySocketController {
             messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", message);
         }
     }
+
+    @MessageMapping("game-lobby/start-game/{game-lobby-id}")
+    public void startGameLobby(
+            Principal principal,
+            @DestinationVariable(value = "game-lobby-id") Long gameLobbyId,
+            MessageHeaders messageHeaders
+    ) {
+        try {
+
+            GameSession gameSession = this.gameManager.startGameSession(gameLobbyId, principal);
+
+            GameLobbyEvent<GameSession> gameStartedEvent = GameLobbyEvent.<GameSession>builder()
+                    .payload(gameSession)
+                    .type(MessageEvent.GAME_STARTED)
+                    .message(String.format("Starting game for %s", gameSession.getLobbySession().getName()))
+                    .timestamp(Instant.now())
+                    .build();
+
+            messagingTemplate.convertAndSend("/topic/game-lobby/" + gameLobbyId, gameStartedEvent);
+
+        } catch (Exception ex) {
+            Message<LobbySession> message = Message.<LobbySession>builder()
+                    .errorMessage("Error Starting Game: " + ex.getMessage())
+                    .messageContent(null)
+                    .messageStatus(MessageStatus.FAILED)
+                    .messageType(MessageType.LOBBY_UPDATE)
+                    .build();
+
+            String sessionId = (String) messageHeaders.get("simpSessionId");
+            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", message);
+        }
+    }
+
 
 
 }

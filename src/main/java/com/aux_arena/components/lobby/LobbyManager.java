@@ -43,7 +43,6 @@ public class LobbyManager {
 
 
     public LobbyManager(SimpMessagingTemplate messagingTemplate) {
-//        this.gameLobbyService = gameLobbyService;
         this.messagingTemplate = messagingTemplate;
     }
 
@@ -74,7 +73,6 @@ public class LobbyManager {
         return lobbySession;
     }
 
-    // TODO finish implementing starting game lobby
     public LobbySession startGameLobby(Long lobbyId) {
         return modifyLobbyAtomically(lobbyId, lobbySession -> {
 
@@ -83,9 +81,7 @@ public class LobbyManager {
             }
             lobbySession.setStatus(GameLobbyStatus.GAME_IN_PROGRESS);
             lobbySession.setLastUpdated(Instant.now());
-
             // new game session should be populated within memory
-            gameManager.loadGameSession(lobbySession);
             return lobbySession;
         });
     }
