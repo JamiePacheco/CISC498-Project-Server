@@ -80,6 +80,7 @@ public class LobbyManager {
                 throw new RuntimeException("Error starting game lobby: Game lobby does not exist within memory");
             }
             lobbySession.setStatus(GameLobbyStatus.GAME_IN_PROGRESS);
+            lobbySession.setActive(true);
             lobbySession.setLastUpdated(Instant.now());
             // new game session should be populated within memory
             return lobbySession;
@@ -153,6 +154,17 @@ public class LobbyManager {
 
             return deactivatedUser;
         });
+    }
+
+    public void sendSystemGameLobbyMessage(Long lobbyId, String message) {
+        this.sendGameLobbyMessage(
+                lobbyId,
+                GameLobbyMessage.builder()
+                        .textMessage(message)
+                        .author("SYSTEM")
+                        .build(),
+                null
+        );
     }
 
     public void sendGameLobbyMessage(Long lobbyId, GameLobbyMessage gameLobbyMessage, Principal principal) {
@@ -268,7 +280,7 @@ public class LobbyManager {
     }
 
     // generic event to broadcast a lobbyUpdate
-    private <T> void broadcastLobbyEvent(LobbySession lobbySession, T eventContent, String message, MessageEvent event) {
+    public <T> void broadcastLobbyEvent(LobbySession lobbySession, T eventContent, String message, MessageEvent event) {
         GameLobbyEvent<T> lobbyEvent = GameLobbyEvent.<T>builder()
                 .type(event)
                 .message(message)
@@ -284,7 +296,7 @@ public class LobbyManager {
         messagingTemplate.convertAndSend("/topic/game-lobby/" + lobbySession.getId(), lobbyEvent);
     }
 
-    private void broadcastLobbyMessage(LobbySession lobbySession, GameLobbyMessage gameLobbyMessage) {
+    public void broadcastLobbyMessage(LobbySession lobbySession, GameLobbyMessage gameLobbyMessage) {
         GameLobbyEvent<GameLobbyMessage> lobbyEvent = GameLobbyEvent.<GameLobbyMessage>builder()
                 .type(MessageEvent.NEW_MESSAGE)
                 .message(String.format("%s sent a message", gameLobbyMessage.getAuthor()))

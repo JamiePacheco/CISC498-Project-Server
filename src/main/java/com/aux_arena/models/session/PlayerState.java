@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class PlayerState {
     private Long userId; // this should link to a user session variable
+    private String userSessionId; // this should be the string that identifies them in lobby manager
     private Long score;
-    private boolean ready;
+    private boolean ready; // this indicates if they are ready to move onto the next round;
+    private boolean isSpectator; // spectators should be able to vote, but can't submit prompts or respond to them
 }

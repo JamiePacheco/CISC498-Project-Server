@@ -1,6 +1,9 @@
 package com.aux_arena.models.session;
 
+import com.aux_arena.models.enums.GameMode;
 import com.aux_arena.models.enums.GameStatus;
+import com.aux_arena.models.enums.RoundStatus;
+import com.aux_arena.models.session.round.PromptPair;
 import com.aux_arena.models.session.round.RoundSession;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,6 +11,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -28,6 +33,10 @@ public class GameSession {
 
     private RoundSession currentRound;
 
+    // For now this will stay as prompt battle but should make it so that it is easily extendable to other modes
+    private GameMode gameMode = GameMode.PROMPT_BATTLE;
+
+
     public GameSession(LobbySession lobbySession) {
 
         // add based attributes for the game session
@@ -36,15 +45,66 @@ public class GameSession {
         this.createdAt = Instant.now();
         this.lastUpdated = Instant.now();
 
+        this.currentRound = RoundSession.builder()
+                .roundStatus(RoundStatus.CHOOSING_SONG)
+                .build();
+
         // add a new player state for each user session within the current game lobby
         for (String key : lobbySession.getActiveUsers().keySet()) {
             PlayerState newPlayerState = PlayerState.builder()
-                    .ready(true)
+                    .ready(false)
                     .score(0L)
                     .userId(lobbySession.getActiveUsers().get(key).getUserId())
+                    .isSpectator(lobbySession.getActiveUsers().get(key).getIsSpectator())
                     .build();
 
             players.put(key, newPlayerState);
         }
+    }
+
+    public List<PlayerState> getNonSpectatorPlayers() {
+        return players.values().stream().filter(u -> u.isSpectator()).toList();
+    }
+
+    public boolean checkReadyStatus(RoundStatus nextPhase) {
+        // all non spectator players are ready;
+        boolean isReady = this.getNonSpectatorPlayers().stream()
+                .filter(u -> u.isReady())
+                .toList()
+                .size() == this.getNonSpectatorPlayers().size();
+
+        if (isReady) {
+            for (PlayerState playerState : players.values()) {
+                playerState.setReady(false);
+            }
+
+            this.getCurrentRound().setRoundStatus(nextPhase);
+        }
+
+        return isReady;
+    }
+
+    // distribute the prompts among the active players
+    public RoundSession distributePrompts() {
+
+        List<PromptPair> promptPairs = this.currentRound.getPromptPairs();
+        Collections.shuffle(promptPairs);
+        int n = promptPairs.size();
+
+        for (int i = 0; i < n ; i++) {
+
+            // get the corresponding player
+            PlayerState playerState = promptPairs.get(i).getPrompt().getAuthor();
+
+            // get the index of the prompts this user will be assigned to
+            // using circular assignment (one to left, one to right from pair array)
+            int promptOne = (i + n - 1) % n;
+            int promptTwo = (i + n - 2) % n;
+
+            promptPairs.get(promptOne).getPlayers().add(playerState);
+            promptPairs.get(promptTwo).getPlayers().add(playerState);
+        }
+
+        return this.getCurrentRound();
     }
 }

@@ -1,11 +1,17 @@
 package com.aux_arena.components.lobby;
 
+import com.aux_arena.models.enums.RoundStatus;
 import com.aux_arena.models.session.GameSession;
 import com.aux_arena.models.session.LobbySession;
+import com.aux_arena.models.session.PlayerState;
 import com.aux_arena.models.session.UserSession;
+import com.aux_arena.models.session.round.Prompt;
+import com.aux_arena.models.session.round.PromptPair;
+import com.aux_arena.models.session.round.RoundSession;
 import lombok.Data;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -51,6 +57,36 @@ public class GameSessionManager {
             gameSessions.put(lobbySession.getId(), gameSession);
         }
         return gameSession;
+    }
+
+    public PlayerState getPlayerState(Long gameLobbyId, UserSession userSession) {
+        return this.gameSessions
+                .get(gameLobbyId)
+                .getPlayers()
+                .get(userSession.getTempId());
+    }
+
+    public Boolean checkReadyStatus(Long gameLobbyId, RoundStatus roundStatus) {
+        return modifyGameSessionAtomically(gameLobbyId, gameSession -> {
+            return gameSession.checkReadyStatus(roundStatus);
+        });
+    }
+
+    public Prompt submitPrompt(Long gameLobbyId, Prompt prompt) {
+        return modifyGameSessionAtomically(gameLobbyId, gameSession -> {
+
+            RoundSession currentRound = this.gameSessions.get(gameLobbyId).getCurrentRound();
+            Prompt submittedPrompt = currentRound.submitPrompt(prompt);
+
+            // set the author of prompt to being ready for next game state
+            prompt.getAuthor().setReady(true);
+
+            return submittedPrompt;
+        });
+    }
+
+    public RoundSession distributePrompts(Long gameLobbyId) {
+        return modifyGameSessionAtomically(gameLobbyId, gameSession -> gameSession.distributePrompts());
     }
 
 }

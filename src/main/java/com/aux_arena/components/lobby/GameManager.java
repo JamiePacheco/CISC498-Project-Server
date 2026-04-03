@@ -1,10 +1,14 @@
 package com.aux_arena.components.lobby;
 
 
+import com.aux_arena.models.enums.RoundStatus;
+import com.aux_arena.models.enums.message.MessageEvent;
 import com.aux_arena.models.session.GameLobbyMessage;
 import com.aux_arena.models.session.GameSession;
 import com.aux_arena.models.session.LobbySession;
 import com.aux_arena.models.session.UserSession;
+import com.aux_arena.models.session.round.Prompt;
+import com.aux_arena.models.session.round.RoundSession;
 import com.aux_arena.models.tables.Game;
 import com.aux_arena.models.tables.GameLobby;
 import lombok.Data;
@@ -57,6 +61,46 @@ public class GameManager {
         this.lobbyManager.sendGameLobbyMessage(gameLobbyId, gameLobbymessage, principal);
     }
 
+    public Prompt submitRoundPrompt(Long gameLobbyId, Prompt prompt, Principal principal) {
+
+        UserSession userSession = this.getUser(gameLobbyId, principal);
+
+        if (userSession == null) throw new RuntimeException("User [" + principal.getName() +  "] is not within lobby");
+
+        // get the user's player state and assign it to the author of the prompt
+        prompt.setAuthor(this.gameSessionManager.getPlayerState(gameLobbyId, userSession));
+
+        // submit prompt to the current round
+        Prompt submittedPrompt = this.gameSessionManager.submitPrompt(gameLobbyId, prompt);
+
+        this.lobbyManager.sendSystemGameLobbyMessage(
+                gameLobbyId,
+                String.format("%s has submitted their prompt", userSession.getDisplayName())
+        );
+
+        // check if all players have submitted prompts, if so set phase to choosing song
+        if (this.gameSessionManager.checkReadyStatus(gameLobbyId, RoundStatus.CHOOSING_SONG)) {
+
+            // need to distribute the prompts to the players
+            RoundSession roundSession = this.gameSessionManager.distributePrompts(gameLobbyId);
+
+            LobbySession lobbySession = this.lobbyManager.getLobbies().get(gameLobbyId);
+
+            // send the assigned prompts to the lobby users
+            this.lobbyManager.broadcastLobbyEvent(
+                    lobbySession,
+                    roundSession,
+                    "All Prompts Received!",
+                    MessageEvent.PROMPT_ASSIGNED
+            );
+
+            // system notification
+            this.lobbyManager.sendSystemGameLobbyMessage(gameLobbyId, "All Prompts Received!");
+        }
+
+        return submittedPrompt;
+    }
+
     public GameSession startGameSession(Long gameLobbyId, Principal principal) {
         UserSession host = this.getUser(gameLobbyId, principal);
 
@@ -66,6 +110,8 @@ public class GameManager {
 
         LobbySession lobbySession = this.lobbyManager.startGameLobby(gameLobbyId);
         GameSession gameSession = this.gameSessionManager.loadGameSession(lobbySession);
+
+        this.lobbyManager.sendSystemGameLobbyMessage(gameLobbyId, "Starting Game");
 
         return gameSession;
     }
