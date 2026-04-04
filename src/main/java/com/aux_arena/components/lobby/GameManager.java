@@ -3,12 +3,8 @@ package com.aux_arena.components.lobby;
 
 import com.aux_arena.models.enums.RoundStatus;
 import com.aux_arena.models.enums.message.MessageEvent;
-import com.aux_arena.models.session.GameLobbyMessage;
-import com.aux_arena.models.session.GameSession;
-import com.aux_arena.models.session.LobbySession;
-import com.aux_arena.models.session.UserSession;
-import com.aux_arena.models.session.round.Prompt;
-import com.aux_arena.models.session.round.RoundSession;
+import com.aux_arena.models.session.*;
+import com.aux_arena.models.session.round.*;
 import com.aux_arena.models.tables.Game;
 import com.aux_arena.models.tables.GameLobby;
 import lombok.Data;
@@ -17,14 +13,19 @@ import org.springframework.stereotype.Component;
 import java.security.Principal;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiFunction;
 
 @Data
 @Component
 public class GameManager {
     private GameSessionManager gameSessionManager;
-
     private LobbyManager lobbyManager;
+
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
 
     public GameManager(GameSessionManager gameSessionManager, LobbyManager lobbyManager) {
 
@@ -47,11 +48,37 @@ public class GameManager {
         return user;
     }
 
+    // function that acquires both locks from lobby and game session to prevent race conditions and
+    // dependencies between them from changing causing race conditons
+    public <T> T withBothLocks(Long lobbyId, BiFunction<GameSession, LobbySession, T> actions) {
+
+        ReentrantLock lobbyLock = this.gameSessionManager.getGameSessionLocks().get(lobbyId);
+        ReentrantLock gameLock = this.gameSessionManager.getGameSessionLocks().get(lobbyId);
+
+        lobbyLock.lock();
+        try {
+            gameLock.lock();
+            try {
+                return actions.apply(
+                        this.gameSessionManager.getGameSession(lobbyId),
+                        this.lobbyManager.getLobbies().get(lobbyId)
+                );
+            } finally {
+                gameLock.unlock();
+            }
+        } finally {
+            lobbyLock.unlock();
+        }
+    }
+
+    //TODO more precise logic needs to be added here
+
     public UserSession connectUser(long gameLobbyId, UserSession newUserSession, Principal principal) {
         UserSession connectedUserSession = this.lobbyManager.onUserConnect(gameLobbyId, newUserSession, principal);
         return connectedUserSession;
     }
 
+    //TODO more precise logic needs to be added here
     public UserSession disconnectUser(Long gameLobbyId, Principal principal) {
         UserSession disconnectedUserSession = this.lobbyManager.onUserDisconnect(gameLobbyId, principal);
         return disconnectedUserSession;
@@ -59,6 +86,21 @@ public class GameManager {
 
     public void sendLobbyMessage(Long gameLobbyId, GameLobbyMessage gameLobbymessage, Principal principal) {
         this.lobbyManager.sendGameLobbyMessage(gameLobbyId, gameLobbymessage, principal);
+    }
+
+    public GameSession startGameSession(Long gameLobbyId, Principal principal) {
+        UserSession host = this.getUser(gameLobbyId, principal);
+
+        if (!host.getHost()) {
+            throw new RuntimeException(String.format("Cannot start game, user '%s' is not the host", principal.getName()));
+        }
+
+        LobbySession lobbySession = this.lobbyManager.startGameLobby(gameLobbyId);
+        GameSession gameSession = this.gameSessionManager.loadGameSession(lobbySession);
+
+        this.lobbyManager.sendSystemGameLobbyMessage(gameLobbyId, "Starting Game");
+
+        return gameSession;
     }
 
     public Prompt submitRoundPrompt(Long gameLobbyId, Prompt prompt, Principal principal) {
@@ -81,38 +123,73 @@ public class GameManager {
         // check if all players have submitted prompts, if so set phase to choosing song
         if (this.gameSessionManager.checkReadyStatus(gameLobbyId, RoundStatus.CHOOSING_SONG)) {
 
-            // need to distribute the prompts to the players
-            RoundSession roundSession = this.gameSessionManager.distributePrompts(gameLobbyId);
+            // lock both lobbySession and gameSession to prevent race conditions
+            withBothLocks(gameLobbyId, (gameSession, lobbySession) -> {
+                // need to distribute the prompts to the players
+                RoundSession roundSession = this.gameSessionManager.distributePrompts(gameSession);
 
-            LobbySession lobbySession = this.lobbyManager.getLobbies().get(gameLobbyId);
+                // send the assigned prompts to the lobby users
+                this.lobbyManager.broadcastLobbyEventUnsafe(
+                        lobbySession,
+                        roundSession,
+                        "All Prompts Received!",
+                        MessageEvent.PROMPT_ASSIGNED
+                );
 
-            // send the assigned prompts to the lobby users
-            this.lobbyManager.broadcastLobbyEvent(
-                    lobbySession,
-                    roundSession,
-                    "All Prompts Received!",
-                    MessageEvent.PROMPT_ASSIGNED
-            );
+                // system notification
+                this.lobbyManager.sendSystemGameLobbyMessageUnsafe(lobbySession, "All Prompts Received!");
 
-            // system notification
-            this.lobbyManager.sendSystemGameLobbyMessage(gameLobbyId, "All Prompts Received!");
+                return null;
+            });
+
         }
 
         return submittedPrompt;
     }
 
-    public GameSession startGameSession(Long gameLobbyId, Principal principal) {
-        UserSession host = this.getUser(gameLobbyId, principal);
+    public PromptSubmission submitSongChoice(Long gameLobbyId, PromptSubmission promptSubmission, Principal principal) {
 
-        if (!host.getHost()) {
-            throw new RuntimeException(String.format("Cannot start game, user '%s' is not the host", principal.getName()));
+        UserSession userSession = this.getUser(gameLobbyId, principal);
+
+        PromptSubmission submittedSong = this.gameSessionManager.submitSongChoice(gameLobbyId, promptSubmission, principal);
+
+        PlayerState playerState = this.gameSessionManager.getPlayerState(gameLobbyId, userSession);
+        playerState.getPromptSubmissions().add(submittedSong);
+
+        // check if player has responded to proper number of prompts
+        // if we make it so the prompts are variable this has to be changed to number of responses need
+        if (playerState.getPromptSubmissions().size() == 2) {
+            playerState.setReady(true);
         }
 
-        LobbySession lobbySession = this.lobbyManager.startGameLobby(gameLobbyId);
-        GameSession gameSession = this.gameSessionManager.loadGameSession(lobbySession);
+        // check if all the players are ready to move on to presenting stage (all have submitted valid responses)
+        if (this.gameSessionManager.checkReadyStatus(gameLobbyId, RoundStatus.PRESENTING)) {
 
-        this.lobbyManager.sendSystemGameLobbyMessage(gameLobbyId, "Starting Game");
+            // need to start presenting the prompts (PRESENTING -> VOTING -> RESULTS and loop until finished)
+            // only need to start the process here
+            withBothLocks(gameLobbyId, (gameSession, lobbySession) -> {
 
-        return gameSession;
+                RoundSession roundSession = gameSession.getCurrentRound();
+
+                // get first prompt to display
+                PromptPair firstPrompt = roundSession.getPromptToDisplay();
+
+                if (firstPrompt == null) throw new RuntimeException("First prompt is null (for some reason...)");
+
+                // TODO add proper event and messaging broadcasting
+
+                return null;
+            });
+
+
+            /* TODO finish implementing phase transition
+                - implement proper server side syncing with a `ScheduledExecutorService` (need to do more research on good implementation)
+                - check functions within both state managers to see if atomic operations are properly implemented
+                - add a dual lock control where times where both locks are acquired they are not relinquished too soon
+
+            */
+        }
+
+        return submittedSong;
     }
 }

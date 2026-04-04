@@ -2,6 +2,7 @@ package com.aux_arena.models.session;
 
 import com.aux_arena.models.enums.GameMode;
 import com.aux_arena.models.enums.GameStatus;
+import com.aux_arena.models.enums.PromptPairStatus;
 import com.aux_arena.models.enums.RoundStatus;
 import com.aux_arena.models.session.round.PromptPair;
 import com.aux_arena.models.session.round.RoundSession;
@@ -87,7 +88,7 @@ public class GameSession {
     // distribute the prompts among the active players
     public RoundSession distributePrompts() {
 
-        List<PromptPair> promptPairs = this.currentRound.getPromptPairs();
+        List<PromptPair> promptPairs = this.currentRound.getPromptPairs().values().stream().toList();
         Collections.shuffle(promptPairs);
         int n = promptPairs.size();
 
@@ -103,6 +104,13 @@ public class GameSession {
 
             promptPairs.get(promptOne).getPlayers().add(playerState);
             promptPairs.get(promptTwo).getPlayers().add(playerState);
+        }
+
+        // make sure all prompts have two players assigned to them
+        for (PromptPair promptPair : promptPairs) {
+            if (promptPair.getPlayers().size() == 2) {
+                promptPair.setStatus(PromptPairStatus.WAITING_FOR_VOTES);
+            }
         }
 
         return this.getCurrentRound();

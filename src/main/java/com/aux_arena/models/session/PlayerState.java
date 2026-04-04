@@ -1,9 +1,12 @@
 package com.aux_arena.models.session;
 
+import com.aux_arena.models.session.round.PromptSubmission;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -15,4 +18,5 @@ public class PlayerState {
     private Long score;
     private boolean ready; // this indicates if they are ready to move onto the next round;
     private boolean isSpectator; // spectators should be able to vote, but can't submit prompts or respond to them
+    private List<PromptSubmission> promptSubmissions;
 }

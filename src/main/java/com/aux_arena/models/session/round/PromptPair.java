@@ -14,11 +14,13 @@ import java.util.Map;
 @Builder
 public class PromptPair {
 
+    private String promptId;
+
     private Prompt prompt;
     private List<PlayerState> players;
 
     //key is users session id in PlayerState
-    private Map<String, SongChoice> songChoices;
+    private Map<String, PromptSubmission> promptSubmissions;
 
     private List<Vote> votes;
     private PromptPairStatus status;

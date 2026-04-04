@@ -106,7 +106,8 @@ public class LobbySession {
             addedUser.setTempId(principal.getName());
             addedUser.setSessionId(userSession.getSessionId());
             addedUser.setLastPingTime(Instant.now());
-            addedUser.setIsSpectator(this.getPlayers().size() == maxPlayers);
+            // user is spectator if there is a full lobby or the lobby is active (in-game)
+            addedUser.setIsSpectator(this.getPlayers().size() >= maxPlayers || this.isActive());
             addedUser.setActive(true);
             addedUser.setJoinedAt(Instant.now());
             addedUser.setFunctionMessage("Reconnect User");

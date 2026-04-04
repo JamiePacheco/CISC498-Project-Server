@@ -167,12 +167,28 @@ public class LobbyManager {
         );
     }
 
+    // used when we assume calling function has lobby session reentry lock already
+    public void sendSystemGameLobbyMessageUnsafe(LobbySession lobbySession, String message) {
+        this.sendGameLobbyMessageUnsafe(
+                lobbySession,
+                GameLobbyMessage.builder()
+                        .textMessage(message)
+                        .author("SYSTEM")
+                        .build()
+        );
+    }
+
     public void sendGameLobbyMessage(Long lobbyId, GameLobbyMessage gameLobbyMessage, Principal principal) {
         modifyLobbyAtomically(lobbyId, lobbySession -> {
             GameLobbyMessage newMessage = lobbySession.addNewMessage(gameLobbyMessage);
             broadcastLobbyMessage(lobbySession, newMessage);
             return lobbySession;
         });
+    }
+
+    public void sendGameLobbyMessageUnsafe(LobbySession lobbySession, GameLobbyMessage gameLobbyMessage) {
+        GameLobbyMessage newMessage = lobbySession.addNewMessage(gameLobbyMessage);
+        broadcastLobbyMessage(lobbySession, newMessage);
     }
 
     public void onUserDisconnect(Principal principal) {
@@ -288,6 +304,23 @@ public class LobbyManager {
                 .timestamp(Instant.now())
                 .sequence(
                         modifyLobbyAtomically(lobbySession.getId(), lobby -> lobby.getGameLobbyEventIndex())
+                )
+                .build();
+
+        log.info("[Sending message {} to game lobby {}]", lobbyEvent.getType(), lobbySession.getId());
+
+        messagingTemplate.convertAndSend("/topic/game-lobby/" + lobbySession.getId(), lobbyEvent);
+    }
+
+    // this function is used when we assume the reentrancy lock is already acquired
+    public <T> void broadcastLobbyEventUnsafe(LobbySession lobbySession, T eventContent, String message, MessageEvent event) {
+        GameLobbyEvent<T> lobbyEvent = GameLobbyEvent.<T>builder()
+                .type(event)
+                .message(message)
+                .payload(eventContent)
+                .timestamp(Instant.now())
+                .sequence(
+                        lobbySession.getGameLobbyEventIndex()
                 )
                 .build();
 

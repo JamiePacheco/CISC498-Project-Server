@@ -7,10 +7,13 @@ import com.aux_arena.models.session.PlayerState;
 import com.aux_arena.models.session.UserSession;
 import com.aux_arena.models.session.round.Prompt;
 import com.aux_arena.models.session.round.PromptPair;
+import com.aux_arena.models.session.round.PromptSubmission;
 import com.aux_arena.models.session.round.RoundSession;
 import lombok.Data;
 import org.springframework.stereotype.Component;
 
+import java.security.Principal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,9 +70,7 @@ public class GameSessionManager {
     }
 
     public Boolean checkReadyStatus(Long gameLobbyId, RoundStatus roundStatus) {
-        return modifyGameSessionAtomically(gameLobbyId, gameSession -> {
-            return gameSession.checkReadyStatus(roundStatus);
-        });
+        return modifyGameSessionAtomically(gameLobbyId, gameSession -> gameSession.checkReadyStatus(roundStatus));
     }
 
     public Prompt submitPrompt(Long gameLobbyId, Prompt prompt) {
@@ -85,8 +86,32 @@ public class GameSessionManager {
         });
     }
 
+
     public RoundSession distributePrompts(Long gameLobbyId) {
         return modifyGameSessionAtomically(gameLobbyId, gameSession -> gameSession.distributePrompts());
+    }
+
+    public RoundSession distributePrompts(GameSession gameSession) {
+        return gameSession.distributePrompts();
+    }
+
+    public PromptSubmission submitSongChoice(Long gameLobbyId, PromptSubmission promptSubmission, Principal principal) {
+        return modifyGameSessionAtomically(gameLobbyId, gameSession -> {
+            PromptPair promptPair = gameSession
+                    .getCurrentRound()
+                    .getPromptPairs()
+                    .get(promptSubmission.getPromptPairId());
+
+            if (promptPair == null) return null;
+
+            promptPair
+                    .getPromptSubmissions()
+                    .put(principal.getName(), promptSubmission);
+
+            promptSubmission.setSubmittedAt(Instant.now());
+
+            return promptSubmission;
+        });
     }
 
 }
