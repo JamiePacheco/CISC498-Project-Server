@@ -110,7 +110,7 @@ public class GameManager {
         if (userSession == null) throw new RuntimeException("User [" + principal.getName() +  "] is not within lobby");
 
         // get the user's player state and assign it to the author of the prompt
-        prompt.setAuthor(this.gameSessionManager.getPlayerState(gameLobbyId, userSession));
+        prompt.setAuthorId(this.gameSessionManager.getPlayerState(gameLobbyId, userSession).getUserSessionId());
 
         // submit prompt to the current round
         Prompt submittedPrompt = this.gameSessionManager.submitPrompt(gameLobbyId, prompt);

@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GameSession {
 
     private Long id;
-    private LobbySession lobbySession;
+    private Long lobbySessionId;
     private GameStatus gameStatus;
     private Instant createdAt;
     private Instant lastUpdated;
@@ -41,7 +41,7 @@ public class GameSession {
     public GameSession(LobbySession lobbySession) {
 
         // add based attributes for the game session
-        this.lobbySession = lobbySession;
+        this.lobbySessionId = lobbySession.getId();
         this.gameStatus = GameStatus.STARTING;
         this.createdAt = Instant.now();
         this.lastUpdated = Instant.now();

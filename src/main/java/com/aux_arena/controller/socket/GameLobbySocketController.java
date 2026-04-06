@@ -182,7 +182,7 @@ public class GameLobbySocketController {
             GameLobbyEvent<GameSession> gameStartedEvent = GameLobbyEvent.<GameSession>builder()
                     .payload(gameSession)
                     .type(MessageEvent.GAME_STARTED)
-                    .message(String.format("Starting game for %s", gameSession.getLobbySession().getName()))
+                    .message(String.format("Starting game for lobby %s", gameSession.getLobbySessionId()))
                     .timestamp(Instant.now())
                     .build();
 
@@ -256,7 +256,7 @@ public class GameLobbySocketController {
             // send user verification their prompt has been submitted
 
             // we send the current snapshot of the lobby so it's bare details can stored to rejoin (not needed but good for display)
-            Message<Prompt> message = Message.<Prompt>builder()
+            Message<PromptSubmission> message = Message.<PromptSubmission>builder()
                     .Message("Prompted successfully submitted")
                     .messageStatus(MessageStatus.SUCCESS)
                     .messageContent(submittedPrompt)

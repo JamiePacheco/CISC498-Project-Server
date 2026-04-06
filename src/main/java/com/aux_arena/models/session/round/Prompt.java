@@ -9,5 +9,5 @@ public class Prompt {
 
     private String prompt;
 
-    private PlayerState author;
+    private String authorId;
 }
