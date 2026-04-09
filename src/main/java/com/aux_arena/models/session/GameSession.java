@@ -95,7 +95,7 @@ public class GameSession {
         for (int i = 0; i < n ; i++) {
 
             // get the corresponding player
-            PlayerState playerState = promptPairs.get(i).getPrompt().getAuthor();
+            PlayerState playerState = this.getPlayers().get(promptPairs.get(i).getPrompt().getAuthorId());
 
             // get the index of the prompts this user will be assigned to
             // using circular assignment (one to left, one to right from pair array)

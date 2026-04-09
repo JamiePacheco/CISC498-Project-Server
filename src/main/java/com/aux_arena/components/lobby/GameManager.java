@@ -71,14 +71,14 @@ public class GameManager {
         }
     }
 
-    //TODO more precise logic needs to be added here
+    //TODO more precise logic needs to be added here (logic that manages gameSession instance)
 
     public UserSession connectUser(long gameLobbyId, UserSession newUserSession, Principal principal) {
         UserSession connectedUserSession = this.lobbyManager.onUserConnect(gameLobbyId, newUserSession, principal);
         return connectedUserSession;
     }
 
-    //TODO more precise logic needs to be added here
+    //TODO more precise logic needs to be added here (logic that manages gameSession instance)
     public UserSession disconnectUser(Long gameLobbyId, Principal principal) {
         UserSession disconnectedUserSession = this.lobbyManager.onUserDisconnect(gameLobbyId, principal);
         return disconnectedUserSession;
