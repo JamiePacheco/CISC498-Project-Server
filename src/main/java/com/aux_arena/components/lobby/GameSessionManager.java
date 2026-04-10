@@ -1,10 +1,7 @@
 package com.aux_arena.components.lobby;
 
 import com.aux_arena.models.enums.RoundStatus;
-import com.aux_arena.models.session.GameSession;
-import com.aux_arena.models.session.LobbySession;
-import com.aux_arena.models.session.PlayerState;
-import com.aux_arena.models.session.UserSession;
+import com.aux_arena.models.session.*;
 import com.aux_arena.models.session.round.Prompt;
 import com.aux_arena.models.session.round.PromptPair;
 import com.aux_arena.models.session.round.PromptSubmission;
@@ -51,11 +48,11 @@ public class GameSessionManager {
         return gameSessions.get(lobbySessionId);
     }
 
-    public GameSession loadGameSession(LobbySession lobbySession) {
+    public GameSession loadGameSession(LobbySession lobbySession, GameSettings gameSettings) {
         GameSession gameSession = gameSessions.get(lobbySession.getId());
         if (gameSession == null) {
             // load new game session
-            gameSession = new GameSession(lobbySession);
+            gameSession = new GameSession(lobbySession, gameSettings);
 
             gameSessions.put(lobbySession.getId(), gameSession);
         }

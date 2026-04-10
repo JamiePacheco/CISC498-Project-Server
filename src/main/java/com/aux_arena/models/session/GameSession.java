@@ -29,16 +29,16 @@ public class GameSession {
     private Instant createdAt;
     private Instant lastUpdated;
 
+    private GameSettings gameSettings;
+
     // uses the same principle id
     private Map<String, PlayerState> players = new ConcurrentHashMap<>();
 
     private RoundSession currentRound;
 
-    // For now this will stay as prompt battle but should make it so that it is easily extendable to other modes
-    private GameMode gameMode = GameMode.PROMPT_BATTLE;
 
 
-    public GameSession(LobbySession lobbySession) {
+    public GameSession(LobbySession lobbySession, GameSettings gameSettings) {
 
         // add based attributes for the game session
         this.lobbySessionId = lobbySession.getId();
@@ -46,8 +46,19 @@ public class GameSession {
         this.createdAt = Instant.now();
         this.lastUpdated = Instant.now();
 
+        // this eventually should be made to accept some settings input
+        if (gameSettings == null) {
+            this.gameSettings = GameSettings.builder()
+                    .timed(true)
+                    .maxDisplayTime(30L)
+                    .gameMode(GameMode.PROMPT_BATTLE)
+                    .build();
+        } else {
+            this.gameSettings = gameSettings;
+        }
         this.currentRound = RoundSession.builder()
-                .roundStatus(RoundStatus.CHOOSING_SONG)
+                .roundStatus(RoundStatus.WRITING_PROMPT)
+                .phaseDuration(RoundStatus.WRITING_PROMPT.defaultDuration)
                 .build();
 
         // add a new player state for each user session within the current game lobby
@@ -80,6 +91,9 @@ public class GameSession {
             }
 
             this.getCurrentRound().setRoundStatus(nextPhase);
+            this.getCurrentRound().setPhaseDuration(nextPhase.defaultDuration);
+
+            // schedule the new phase
         }
 
         return isReady;

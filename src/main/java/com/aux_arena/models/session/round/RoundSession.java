@@ -27,6 +27,8 @@ public class RoundSession {
 
     private Map<String, PromptPair> promptPairs = new ConcurrentHashMap<>();
 
+    private Long phaseDuration = 30L;
+
     // This is used during the presenting phase
     private int currentPairIndex = 0;
 

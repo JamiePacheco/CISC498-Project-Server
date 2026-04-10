@@ -1,6 +1,7 @@
 package com.aux_arena.components.lobby;
 
 
+import com.aux_arena.components.scheduling.PhaseTimerManager;
 import com.aux_arena.models.enums.RoundStatus;
 import com.aux_arena.models.enums.message.MessageEvent;
 import com.aux_arena.models.session.*;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
 import java.security.Principal;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.locks.ReentrantLock;
@@ -21,14 +23,20 @@ import java.util.function.BiFunction;
 @Data
 @Component
 public class GameManager {
-    private GameSessionManager gameSessionManager;
-    private LobbyManager lobbyManager;
+    private final GameSessionManager gameSessionManager;
+    private final LobbyManager lobbyManager;
+    private final PhaseTimerManager phaseTimerManager;
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
+    private final Executor broadcastExecutor = Executors.newFixedThreadPool(4);
 
-    public GameManager(GameSessionManager gameSessionManager, LobbyManager lobbyManager) {
-
+    public GameManager(
+            GameSessionManager gameSessionManager,
+            LobbyManager lobbyManager,
+            PhaseTimerManager phaseTimerManager
+    ) {
+        this.phaseTimerManager = phaseTimerManager;
         this.gameSessionManager = gameSessionManager;
         this.lobbyManager = lobbyManager;
     }
@@ -71,6 +79,23 @@ public class GameManager {
         }
     }
 
+    public void scheduleLobbyPhase(Long lobbyId, RoundStatus roundStatus) {
+        withBothLocks(lobbyId, (gameSession, lobbySession) -> {
+            switch (roundStatus) {
+                case WRITING_PROMPT:
+                    this.phaseTimerManager.schedulePhase(
+                            lobbyId,
+                            () -> this.startSelectMusicPhase(lobbySession, gameSession),
+                            roundStatus.defaultDuration
+                    );
+                    break;
+
+
+            }
+            return null;
+        });
+    }
+
     //TODO more precise logic needs to be added here (logic that manages gameSession instance)
 
     public UserSession connectUser(long gameLobbyId, UserSession newUserSession, Principal principal) {
@@ -88,7 +113,7 @@ public class GameManager {
         this.lobbyManager.sendGameLobbyMessage(gameLobbyId, gameLobbymessage, principal);
     }
 
-    public GameSession startGameSession(Long gameLobbyId, Principal principal) {
+    public GameSession startGameSession(Long gameLobbyId, GameSettings gameSettings, Principal principal) {
         UserSession host = this.getUser(gameLobbyId, principal);
 
         if (!host.getHost()) {
@@ -96,7 +121,10 @@ public class GameManager {
         }
 
         LobbySession lobbySession = this.lobbyManager.startGameLobby(gameLobbyId);
-        GameSession gameSession = this.gameSessionManager.loadGameSession(lobbySession);
+        GameSession gameSession = this.gameSessionManager.loadGameSession(lobbySession, gameSettings);
+
+        // we set the timer for the next phase
+        this.scheduleLobbyPhase(gameLobbyId, RoundStatus.CHOOSING_SONG);
 
         this.lobbyManager.sendSystemGameLobbyMessage(gameLobbyId, "Starting Game");
 
@@ -122,29 +150,31 @@ public class GameManager {
 
         // check if all players have submitted prompts, if so set phase to choosing song
         if (this.gameSessionManager.checkReadyStatus(gameLobbyId, RoundStatus.CHOOSING_SONG)) {
+            // if it is ready we then schedule the lobbyPhase
 
-            // lock both lobbySession and gameSession to prevent race conditions
             withBothLocks(gameLobbyId, (gameSession, lobbySession) -> {
-                // need to distribute the prompts to the players
-                RoundSession roundSession = this.gameSessionManager.distributePrompts(gameSession);
-
-                // send the assigned prompts to the lobby users
-                this.lobbyManager.broadcastLobbyEventUnsafe(
-                        lobbySession,
-                        roundSession,
-                        "All Prompts Received!",
-                        MessageEvent.PROMPT_ASSIGNED
-                );
-
-                // system notification
-                this.lobbyManager.sendSystemGameLobbyMessageUnsafe(lobbySession, "All Prompts Received!");
-
+                startSelectMusicPhase(lobbySession, gameSession);
                 return null;
             });
-
         }
 
         return submittedPrompt;
+    }
+
+    public void startSelectMusicPhase(LobbySession lobbySession, GameSession gameSession) {
+        // distribute the prompts to the users
+        RoundSession roundSession = this.gameSessionManager.distributePrompts(gameSession);
+
+        // send the assigned prompts to the lobby users
+        this.lobbyManager.broadcastLobbyEventUnsafe(
+                lobbySession,
+                roundSession,
+                "Prompts Received!",
+                MessageEvent.PROMPT_ASSIGNED
+        );
+
+        // system notification
+        this.lobbyManager.sendSystemGameLobbyMessageUnsafe(lobbySession, "All Prompts Received!");
     }
 
     public PromptSubmission submitSongChoice(Long gameLobbyId, PromptSubmission promptSubmission, Principal principal) {

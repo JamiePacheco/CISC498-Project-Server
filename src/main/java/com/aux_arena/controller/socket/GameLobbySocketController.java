@@ -6,10 +6,7 @@ import com.aux_arena.components.lobby.LobbyManager;
 import com.aux_arena.models.enums.message.MessageEvent;
 import com.aux_arena.models.enums.message.MessageStatus;
 import com.aux_arena.models.enums.message.MessageType;
-import com.aux_arena.models.session.GameLobbyMessage;
-import com.aux_arena.models.session.GameSession;
-import com.aux_arena.models.session.LobbySession;
-import com.aux_arena.models.session.UserSession;
+import com.aux_arena.models.session.*;
 import com.aux_arena.models.session.round.Prompt;
 import com.aux_arena.models.session.round.PromptSubmission;
 import com.aux_arena.models.session.round.SongChoice;
@@ -173,11 +170,12 @@ public class GameLobbySocketController {
     public void startGameLobby(
             Principal principal,
             @DestinationVariable(value = "game-lobby-id") Long gameLobbyId,
+            @Payload GameSettings gameSettings,
             MessageHeaders messageHeaders
     ) {
         try {
 
-            GameSession gameSession = this.gameManager.startGameSession(gameLobbyId, principal);
+            GameSession gameSession = this.gameManager.startGameSession(gameLobbyId, gameSettings, principal);
 
             GameLobbyEvent<GameSession> gameStartedEvent = GameLobbyEvent.<GameSession>builder()
                     .payload(gameSession)
