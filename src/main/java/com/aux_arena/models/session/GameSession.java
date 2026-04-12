@@ -74,6 +74,18 @@ public class GameSession {
         }
     }
 
+    public PlayerState addNewPlayerState(UserSession userSession) {
+        PlayerState newPlayerState = PlayerState.builder()
+                .ready(false)
+                .score(0L)
+                .userId(userSession.getUserId())
+                .isSpectator(userSession.getIsSpectator())
+                .build();
+
+        this.getPlayers().put(newPlayerState.getUserSessionId(), newPlayerState);
+        return newPlayerState;
+    }
+
     public List<PlayerState> getNonSpectatorPlayers() {
         return players.values().stream().filter(u -> u.isSpectator()).toList();
     }
@@ -98,6 +110,8 @@ public class GameSession {
 
         return isReady;
     }
+
+
 
     // distribute the prompts among the active players
     public RoundSession distributePrompts() {

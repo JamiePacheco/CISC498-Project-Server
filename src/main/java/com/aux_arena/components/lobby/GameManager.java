@@ -61,7 +61,7 @@ public class GameManager {
     public <T> T withBothLocks(Long lobbyId, BiFunction<GameSession, LobbySession, T> actions) {
 
         ReentrantLock lobbyLock = this.gameSessionManager.getGameSessionLocks().get(lobbyId);
-        ReentrantLock gameLock = this.gameSessionManager.getGameSessionLocks().get(lobbyId);
+        ReentrantLock gameLock = this.lobbyManager.getLobbyLocks().get(lobbyId);
 
         lobbyLock.lock();
         try {
@@ -80,26 +80,27 @@ public class GameManager {
     }
 
     public void scheduleLobbyPhase(Long lobbyId, RoundStatus roundStatus) {
-        withBothLocks(lobbyId, (gameSession, lobbySession) -> {
             switch (roundStatus) {
                 case WRITING_PROMPT:
                     this.phaseTimerManager.schedulePhase(
                             lobbyId,
-                            () -> this.startSelectMusicPhase(lobbySession, gameSession),
+                            () -> this.startSelectMusicPhase(lobbyId),
                             roundStatus.defaultDuration
                     );
                     break;
 
 
             }
-            return null;
-        });
     }
 
     //TODO more precise logic needs to be added here (logic that manages gameSession instance)
 
     public UserSession connectUser(long gameLobbyId, UserSession newUserSession, Principal principal) {
+
         UserSession connectedUserSession = this.lobbyManager.onUserConnect(gameLobbyId, newUserSession, principal);
+        PlayerState playerState = this.gameSessionManager.addNewUser(gameLobbyId, connectedUserSession);
+
+
         return connectedUserSession;
     }
 
@@ -123,8 +124,10 @@ public class GameManager {
         LobbySession lobbySession = this.lobbyManager.startGameLobby(gameLobbyId);
         GameSession gameSession = this.gameSessionManager.loadGameSession(lobbySession, gameSettings);
 
-        // we set the timer for the next phase
-        this.scheduleLobbyPhase(gameLobbyId, RoundStatus.CHOOSING_SONG);
+        // we set the timer for the next phase if game is timed
+        if (gameSession.getGameSettings().isTimed()) {
+            this.scheduleLobbyPhase(gameLobbyId, RoundStatus.CHOOSING_SONG);
+        }
 
         this.lobbyManager.sendSystemGameLobbyMessage(gameLobbyId, "Starting Game");
 
@@ -152,29 +155,33 @@ public class GameManager {
         if (this.gameSessionManager.checkReadyStatus(gameLobbyId, RoundStatus.CHOOSING_SONG)) {
             // if it is ready we then schedule the lobbyPhase
 
-            withBothLocks(gameLobbyId, (gameSession, lobbySession) -> {
-                startSelectMusicPhase(lobbySession, gameSession);
-                return null;
-            });
+            startSelectMusicPhase(gameLobbyId);
         }
 
         return submittedPrompt;
     }
 
-    public void startSelectMusicPhase(LobbySession lobbySession, GameSession gameSession) {
-        // distribute the prompts to the users
-        RoundSession roundSession = this.gameSessionManager.distributePrompts(gameSession);
+    public void startSelectMusicPhase(Long lobbySessionId) {
+        withBothLocks(lobbySessionId, (gameSession, lobbySession) -> {
+            // first want to check if every user has submitted a prompt (need a certain amount)
+            this.gameSessionManager.verifyUserPromptsUnsafe(gameSession);
 
-        // send the assigned prompts to the lobby users
-        this.lobbyManager.broadcastLobbyEventUnsafe(
-                lobbySession,
-                roundSession,
-                "Prompts Received!",
-                MessageEvent.PROMPT_ASSIGNED
-        );
+            // distribute the prompts to the users
+            RoundSession roundSession = this.gameSessionManager.distributePrompts(gameSession);
 
-        // system notification
-        this.lobbyManager.sendSystemGameLobbyMessageUnsafe(lobbySession, "All Prompts Received!");
+            // send the assigned prompts to the lobby users
+            this.lobbyManager.broadcastLobbyEventUnsafe(
+                    lobbySession,
+                    roundSession,
+                    "Prompts Received!",
+                    MessageEvent.PROMPT_ASSIGNED
+            );
+
+            // system notification
+            this.lobbyManager.sendSystemGameLobbyMessageUnsafe(lobbySession, "All Prompts Received!");
+
+            return null;
+        });
     }
 
     public PromptSubmission submitSongChoice(Long gameLobbyId, PromptSubmission promptSubmission, Principal principal) {
@@ -213,10 +220,13 @@ public class GameManager {
 
 
             /* TODO finish implementing phase transition
-                - implement proper server side syncing with a `ScheduledExecutorService` (need to do more research on good implementation)
-                - check functions within both state managers to see if atomic operations are properly implemented
-                - add a dual lock control where times where both locks are acquired they are not relinquished too soon
-
+                - implement proper broadcasting logic using specific broadcast executor
+                - ensure that proper logic for
+                    a.) everyone is ready so we continue and make sure to cancel scheduled event and manually progress
+                    b.) time ran out and we continue as normal while also scheduling next event
+                    c.) ensure proper messages are being sent to users that tell the time frames
+                - implement vote submission endpoint
+                    - add another option where both songs are ass
             */
         }
 

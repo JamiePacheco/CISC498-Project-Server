@@ -2,8 +2,10 @@ package com.aux_arena.models.session;
 
 import com.aux_arena.models.enums.GameMode;
 import lombok.Builder;
+import lombok.Data;
 
 @Builder
+@Data
 public class GameSettings {
 
     private GameMode gameMode;

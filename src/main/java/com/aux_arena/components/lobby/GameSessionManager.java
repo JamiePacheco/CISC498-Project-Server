@@ -6,6 +6,8 @@ import com.aux_arena.models.session.round.Prompt;
 import com.aux_arena.models.session.round.PromptPair;
 import com.aux_arena.models.session.round.PromptSubmission;
 import com.aux_arena.models.session.round.RoundSession;
+import com.aux_arena.models.tables.Game;
+import com.aux_arena.models.tables.User;
 import lombok.Data;
 import org.springframework.stereotype.Component;
 
@@ -66,6 +68,20 @@ public class GameSessionManager {
                 .get(userSession.getTempId());
     }
 
+    // used for when a player joins in the middle of the match
+    // should be they are always spectators unless they were disconnected and reconnected
+    public PlayerState addNewUser(Long lobbyId, UserSession userSession) {
+        return modifyGameSessionAtomically(lobbyId, gameSession -> {
+
+            // in this case the user is reconnecting within a valid amount of time so use previous session
+            if (gameSession.getPlayers().get(userSession.getTempId()) != null) return null;
+
+            // otherwise connect them, BUT always make them a spectator (things will get messy otherwise
+            // maybe later we can make it so upon a new round if the amount of players will get filled by the spectators...
+            return gameSession.addNewPlayerState(userSession);
+        });
+    }
+
     public Boolean checkReadyStatus(Long gameLobbyId, RoundStatus roundStatus) {
         return modifyGameSessionAtomically(gameLobbyId, gameSession -> gameSession.checkReadyStatus(roundStatus));
     }
@@ -81,6 +97,35 @@ public class GameSessionManager {
             gameSession.getPlayers().get(prompt.getAuthorId()).setReady(true);
             return submittedPrompt;
         });
+    }
+
+    public Prompt generatePrompt() {
+        return Prompt.builder()
+                .prompt("Song when you on a trip with your slimes and run over a grandma") // TODO make a database of pre-generated prompts
+                .build();
+    }
+
+    public void verifyUserPromptsUnsafe(GameSession gameSession) {
+        RoundSession roundSession = gameSession.getCurrentRound();
+
+        // check if prompt amount is same amount as active players
+        if (roundSession.getPromptPairs().size() == gameSession.getNonSpectatorPlayers().size()) {
+            return;
+        }
+
+        // if the player is not ready then they have not submitted a prompt (thus we generate one for them)
+        List<PlayerState> notReadyPlayers = gameSession
+                .getNonSpectatorPlayers()
+                .stream()
+                .filter(p -> !p.isReady())
+                .toList();
+
+        for (PlayerState playerState : notReadyPlayers) {
+            Prompt prompt = this.generatePrompt();
+            prompt.setWasGenerated(true);
+            prompt.setAuthorId(playerState.getUserSessionId());
+            roundSession.submitPrompt(prompt);
+        }
     }
 
 
