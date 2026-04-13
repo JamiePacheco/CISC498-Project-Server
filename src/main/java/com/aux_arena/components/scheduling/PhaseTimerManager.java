@@ -1,6 +1,5 @@
 package com.aux_arena.components.scheduling;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.*;
@@ -50,19 +49,6 @@ public class PhaseTimerManager {
     public void cancelAll() {
         activeTimers.forEach((id, future) -> future.cancel(false));
         activeTimers.clear();
-    }
-
-    @Bean
-    public ScheduledExecutorService gameScheduler() {
-        int coreCount = Runtime.getRuntime().availableProcessors();
-
-        return new ScheduledThreadPoolExecutor(coreCount * 2) {
-            {
-                setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardOldestPolicy());
-
-                setRemoveOnCancelPolicy(true);
-            }
-        };
     }
 
 }

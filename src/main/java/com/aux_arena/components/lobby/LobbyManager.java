@@ -19,7 +19,10 @@ import java.security.Principal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
@@ -40,6 +43,8 @@ public class LobbyManager {
     private GameManager gameManager;
 
     private static final Logger log = LoggerFactory.getLogger(LobbyManager.class);
+
+    private final Executor broadcastExecutor = Executors.newFixedThreadPool(4);
 
 
     public LobbyManager(SimpMessagingTemplate messagingTemplate) {
@@ -88,163 +93,207 @@ public class LobbyManager {
     }
 
     // TODO get user from database (create if no user exists) then add it to the current lobby
-    public UserSession onUserConnect(Long lobbyId, UserSession user, Principal principal) {
-        return modifyLobbyAtomically(lobbyId, lobbySession -> {
-            if (lobbySession == null) {
-                throw new RuntimeException("Lobby does not exist");
-            }
+//    public UserSession onUserConnect(Long lobbyId, UserSession user, Principal principal) {
+//        return modifyLobbyAtomically(lobbyId, lobbySession -> {
+//            if (lobbySession == null) {
+//                throw new RuntimeException("Lobby does not exist");
+//            }
+//
+//            UserSession addedUser = lobbySession.addUser(user, principal);
+//
+//            log.info("added user: {}", addedUser) ;
+//
+//            if (addedUser == null) {
+//                throw new RuntimeException(String.format("Game Lobby %s is full", lobbySession.getLobbyCode()));
+//            }
+//
+//            if (!userSessions.containsKey(principal.getName())) {
+//                userSessions.put(principal.getName(), addedUser);
+//            }
+//
+//            for (UserSession userSession : lobbySession.getActiveUsers().values()) {
+//                log.info(userSession.toString());
+//            }
+//
+//            broadcastLobbyEventUnsafe(
+//                    lobbySession,
+//                    addedUser,
+//                    String.format("%s has joined", addedUser.getDisplayName()),
+//                    MessageEvent.USER_JOINED
+//            );
+//
+//            // Send new connection notification to all users
+//            sendGameLobbyMessage(
+//                    lobbyId,
+//                    GameLobbyMessage.builder()
+//                            .textMessage(String.format("%s has connected", addedUser.getDisplayName()))
+//                            .author("SYSTEM")
+//                            .build(),
+//                    null
+//            );
+//
+//            return addedUser;
+//        });
+//    }
 
-            UserSession addedUser = lobbySession.addUser(user, principal);
+    public UserSession onUserConnect(Long lobbyId, UserSession userSession, Principal principal) {
+        record ConnectResult(UserSession userSession, long sequence, GameLobbyMessage message) {}
 
-            log.info("added user: {}", addedUser) ;
+        // atomically add new user to lobby
+        ConnectResult result = modifyLobbyAtomically(lobbyId, lobbySession -> {
+            UserSession addedUser = lobbySession.addUser(userSession, principal);
+            GameLobbyMessage msg = GameLobbyMessage.builder()
+                    .textMessage(String.format("%s has joined", addedUser.getDisplayName()))
+                    .author("SYSTEM")
+                    .build();
+            lobbySession.addNewMessage(msg);
 
-            if (addedUser == null) {
-                throw new RuntimeException(String.format("Game Lobby %s is full", lobbySession.getLobbyCode()));
-            }
-
-            if (!userSessions.containsKey(principal.getName())) {
-                userSessions.put(principal.getName(), addedUser);
-            }
-
-            for (UserSession userSession : lobbySession.getActiveUsers().values()) {
-                log.info(userSession.toString());
-            }
-
-            broadcastLobbyEvent(
-                    lobbySession,
-                    addedUser,
-                    String.format("%s has joined", addedUser.getDisplayName()),
-                    MessageEvent.USER_JOINED
-            );
-
-            // Send new connection notification to all users
-            sendGameLobbyMessage(
-                    lobbyId,
-                    GameLobbyMessage.builder()
-                            .textMessage(String.format("%s has connected", addedUser.getDisplayName()))
-                            .author("SYSTEM")
-                            .build(),
-                    null
-            );
-
-            return addedUser;
+            // get the event index of the new user joining
+            long eventIndex = lobbySession.getGameLobbyEventIndex();
+            return new ConnectResult(addedUser, eventIndex, msg);
         });
+
+        LobbySession lobbySession = this.getLobbies().get(lobbyId);
+
+        // send new user information to lobby
+        broadcastLobbyEvent(
+                lobbySession,
+                result.userSession,
+                result.message.getTextMessage(),
+                MessageEvent.USER_JOINED,
+                result.sequence
+        );
+
+        // send out system message notifying users
+        broadcastLobbyMessage(
+                lobbySession,
+                result.message
+        );
+
+        return result.userSession;
     }
 
     public UserSession onUserDisconnect(Long lobbyId, Principal principal) {
-        return modifyLobbyAtomically(lobbyId, lobbySession -> {
+        record DisconnectResult(UserSession userSession, long sequence, GameLobbyMessage message) {}
+
+        DisconnectResult result = modifyLobbyAtomically(lobbyId, lobbySession -> {
             if (lobbySession == null) {
                 throw new RuntimeException(String.format("Game Lobby %s not found", lobbyId));
             }
             UserSession deactivatedUser = lobbySession.disconnectUser(principal.getName());
 
-            for (UserSession userSession : lobbySession.getActiveUsers().values()) {
-                log.info(userSession.toString());
-            }
+            GameLobbyMessage msg = GameLobbyMessage.builder()
+                    .textMessage(String.format("%s has disconnected", deactivatedUser.getDisplayName()))
+                    .author("SYSTEM")
+                    .build();
+
+            long sequence = lobbySession.getGameLobbyEventIndex();
 
             // Send disconnection notification to all users
-            sendGameLobbyMessage(
-                    lobbyId,
-                    GameLobbyMessage.builder()
-                            .textMessage(String.format("%s has disconnected", deactivatedUser.getDisplayName()))
-                            .author("SYSTEM")
-                            .build(),
-                    null
-            );
 
-            return deactivatedUser;
+            return new DisconnectResult(deactivatedUser, sequence, msg);
         });
-    }
 
-    public void sendSystemGameLobbyMessage(Long lobbyId, String message) {
-        this.sendGameLobbyMessage(
-                lobbyId,
-                GameLobbyMessage.builder()
-                        .textMessage(message)
-                        .author("SYSTEM")
-                        .build(),
-                null
-        );
-    }
+        LobbySession lobbySession = this.getLobbies().get(lobbyId);
 
-    // used when we assume calling function has lobby session reentry lock already
-    public void sendSystemGameLobbyMessageUnsafe(LobbySession lobbySession, String message) {
-        this.sendGameLobbyMessageUnsafe(
+        // send new user information to lobby
+        broadcastLobbyEvent(
                 lobbySession,
-                GameLobbyMessage.builder()
-                        .textMessage(message)
-                        .author("SYSTEM")
-                        .build()
+                result.userSession,
+                result.message.getTextMessage(),
+                MessageEvent.USER_LEFT,
+                result.sequence
         );
-    }
 
-    public void sendGameLobbyMessage(Long lobbyId, GameLobbyMessage gameLobbyMessage, Principal principal) {
-        modifyLobbyAtomically(lobbyId, lobbySession -> {
-            GameLobbyMessage newMessage = lobbySession.addNewMessage(gameLobbyMessage);
-            broadcastLobbyMessage(lobbySession, newMessage);
-            return lobbySession;
-        });
-    }
+        // send out system message notifying users
+        sendSystemGameLobbyMessage(
+                lobbyId,
+                result.message.getTextMessage()
+        );
 
-    public void sendGameLobbyMessageUnsafe(LobbySession lobbySession, GameLobbyMessage gameLobbyMessage) {
-        GameLobbyMessage newMessage = lobbySession.addNewMessage(gameLobbyMessage);
-        broadcastLobbyMessage(lobbySession, newMessage);
+        return result.userSession;
     }
 
     public void onUserDisconnect(Principal principal) {
-
         if (userSessions.get(principal.getName()) == null) return;
 
+        // upon sporadic disconnection the information on the lobby is not known
         Long lobbyId = userSessions.get(principal.getName()).getLobbyId();
 
-        // to avoid race conditions we utilize an atomic function to access the in-memory lobby
-        modifyLobbyAtomically(lobbyId, lobbySession -> {
+        // define how the resulting data should look
+        record DisconnectResult(
+                UserSession disconnectUser,
+                UserSession newHost,
+                Long disconnectedSequence,
+                Long hostSequence,
+                GameLobbyMessage disconnectMessage,
+                GameLobbyMessage hostMessage
+        ) {}
+
+
+        // to avoid race conditions we utilize an atomic function to access the in-memory lobby and return resulting data
+        DisconnectResult disconnectedResult = modifyLobbyAtomically(lobbyId, lobbySession -> {
+
             UserSession disconnectedUser = lobbySession.disconnectUser(principal.getName());
             if (disconnectedUser == null) {
                 throw new RuntimeException("User not connected to a lobby");
             }
+            Long disconnectSequence = lobbySession.getGameLobbyEventIndex();
+            GameLobbyMessage disconnectMessage = GameLobbyMessage.builder()
+                    .textMessage(String.format("%s has disconnected", disconnectedUser.getDisplayName()))
+                    .author("SYSTEM")
+                    .build();
 
+
+            UserSession newHost = null;
+            Long hostSequence = null;
+            GameLobbyMessage hostMessage = null;
             if (lobbySession.getHost() == disconnectedUser) {
-                UserSession newHost = lobbySession.assignHost();
+                newHost = lobbySession.assignHost();
                 if (newHost != null) {
                     disconnectedUser.setHost(false);
-                    broadcastLobbyEvent(
-                            lobbySession,
-                            newHost,
-                            String.format("%s promoted to host", newHost.getDisplayName()),
-                            MessageEvent.NEW_HOST);
-
-                    // Send new host notification to all users
-                    sendGameLobbyMessage(
-                            lobbyId,
-                            GameLobbyMessage.builder()
-                                    .textMessage(String.format("%s promoted to host", newHost.getDisplayName()))
-                                    .author("SYSTEM")
-                                    .build(),
-                            null
-                    );
+                    hostSequence = lobbySession.getGameLobbyEventIndex();
+                    hostMessage = GameLobbyMessage.builder()
+                            .textMessage(String.format("%s promoted to host", newHost.getDisplayName()))
+                            .author("SYSTEM")
+                            .build();
                 }
             }
 
+            return new DisconnectResult(disconnectedUser, newHost, disconnectSequence, hostSequence, disconnectMessage, hostMessage);
+        });
+
+        LobbySession lobbySession = this.getLobbies().get(lobbyId);
+
+        // broadcast the disconnect user to all players
+        broadcastLobbyEvent(
+                lobbySession,
+                disconnectedResult.disconnectUser,
+                disconnectedResult.disconnectMessage.getTextMessage(),
+                MessageEvent.USER_LEFT,
+                disconnectedResult.disconnectedSequence
+        );
+
+        sendSystemGameLobbyMessage(
+                lobbyId,
+                disconnectedResult.disconnectMessage.getTextMessage()
+        );
+
+        // Send new host notification to all users if there was a host reassignment
+        if (disconnectedResult.newHost != null) {
             broadcastLobbyEvent(
                     lobbySession,
-                    disconnectedUser,
-                    String.format("%s disconnected", disconnectedUser.getDisplayName()),
-                    MessageEvent.USER_LEFT
+                    disconnectedResult.newHost,
+                    disconnectedResult.hostMessage.getTextMessage(),
+                    MessageEvent.NEW_HOST,
+                    disconnectedResult.hostSequence
             );
 
-            // Send new host notification to all users
-            sendGameLobbyMessage(
+            sendSystemGameLobbyMessage(
                     lobbyId,
-                    GameLobbyMessage.builder()
-                            .textMessage(String.format("%s has disconnected", disconnectedUser.getDisplayName()))
-                            .author("SYSTEM")
-                            .build(),
-                    null
+                    disconnectedResult.disconnectMessage.getTextMessage()
             );
-
-            return null;
-        });
+        }
     }
 
     public void cleanupInactiveUsers() {
@@ -312,25 +361,36 @@ public class LobbyManager {
         messagingTemplate.convertAndSend("/topic/game-lobby/" + lobbySession.getId(), lobbyEvent);
     }
 
-    // this function is used when we assume the reentrancy lock is already acquired
-    public <T> void broadcastLobbyEventUnsafe(LobbySession lobbySession, T eventContent, String message, MessageEvent event) {
+    public <T> void broadcastLobbyEvent(
+            LobbySession lobbySession,
+            T eventContent,
+            String message,
+            MessageEvent event,
+            Long eventSequence
+    ) {
         GameLobbyEvent<T> lobbyEvent = GameLobbyEvent.<T>builder()
                 .type(event)
                 .message(message)
                 .payload(eventContent)
                 .timestamp(Instant.now())
-                .sequence(
-                        lobbySession.getGameLobbyEventIndex()
-                )
+                .sequence(eventSequence)
                 .build();
 
-        log.info("[Sending message {} to game lobby {}]", lobbyEvent.getType(), lobbySession.getId());
-
-        messagingTemplate.convertAndSend("/topic/game-lobby/" + lobbySession.getId(), lobbyEvent);
+        // this will run on a separate thread specifically allocated for broadcasting
+        CompletableFuture.runAsync(
+                () -> messagingTemplate.convertAndSend("/topic/game-lobby/" + lobbySession.getId(), lobbyEvent),
+                broadcastExecutor
+        );
     }
 
-    public void broadcastLobbyMessage(LobbySession lobbySession, GameLobbyMessage gameLobbyMessage) {
-        GameLobbyEvent<GameLobbyMessage> lobbyEvent = GameLobbyEvent.<GameLobbyMessage>builder()
+    // this function is used when we assume the reentrancy lock is already acquired
+
+    public void broadcastLobbyMessage(
+            LobbySession lobbySession,
+            GameLobbyMessage gameLobbyMessage
+    ) {
+
+        GameLobbyEvent<GameLobbyMessage> lobbyMessage = GameLobbyEvent.<GameLobbyMessage>builder()
                 .type(MessageEvent.NEW_MESSAGE)
                 .message(String.format("%s sent a message", gameLobbyMessage.getAuthor()))
                 .payload(gameLobbyMessage)
@@ -338,9 +398,48 @@ public class LobbyManager {
                 .sequence(gameLobbyMessage.getMessageIndex())
                 .build();
 
-        log.info("[Sending message {} from {} to game lobby {}]", lobbyEvent.getType(), gameLobbyMessage.getAuthor(), lobbySession.getId());
+        CompletableFuture.runAsync(
+                () ->  messagingTemplate.convertAndSend("/topic/game-lobby/message/" + lobbySession.getId(), lobbyMessage),
+                broadcastExecutor
+        );
+    }
 
-        messagingTemplate.convertAndSend("/topic/game-lobby/message/" + lobbySession.getId(), lobbyEvent);
+    public void sendGameLobbyMessage(Long lobbyId, GameLobbyMessage gameLobbyMessage, Principal principal) {
+
+        GameLobbyMessage savedMessage = modifyLobbyAtomically(lobbyId, lobbySession -> {
+            GameLobbyMessage newMessage = lobbySession.addNewMessage(gameLobbyMessage);
+            return newMessage;
+        });
+
+        LobbySession lobbySession = this.getLobbies().get(lobbyId);
+        broadcastLobbyMessage(lobbySession, savedMessage);
+    }
+
+    public void sendGameLobbyMessageUnsafe(LobbySession lobbySession, GameLobbyMessage gameLobbyMessage) {
+        GameLobbyMessage newMessage = lobbySession.addNewMessage(gameLobbyMessage);
+        broadcastLobbyMessage(lobbySession, newMessage);
+    }
+
+    public void sendSystemGameLobbyMessage(Long lobbyId, String message) {
+        this.sendGameLobbyMessage(
+                lobbyId,
+                GameLobbyMessage.builder()
+                        .textMessage(message)
+                        .author("SYSTEM")
+                        .build(),
+                null
+        );
+    }
+
+    // used when we assume calling function has lobby session reentry lock already
+    public void sendSystemGameLobbyMessageUnsafe(LobbySession lobbySession, String message) {
+        this.sendGameLobbyMessageUnsafe(
+                lobbySession,
+                GameLobbyMessage.builder()
+                        .textMessage(message)
+                        .author("SYSTEM")
+                        .build()
+        );
     }
 
 

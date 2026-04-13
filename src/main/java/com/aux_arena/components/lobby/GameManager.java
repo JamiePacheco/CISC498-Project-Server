@@ -2,6 +2,7 @@ package com.aux_arena.components.lobby;
 
 
 import com.aux_arena.components.scheduling.PhaseTimerManager;
+import com.aux_arena.models.enums.GameLobbyStatus;
 import com.aux_arena.models.enums.RoundStatus;
 import com.aux_arena.models.enums.message.MessageEvent;
 import com.aux_arena.models.session.*;
@@ -29,7 +30,6 @@ public class GameManager {
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
-    private final Executor broadcastExecutor = Executors.newFixedThreadPool(4);
 
     public GameManager(
             GameSessionManager gameSessionManager,
@@ -79,18 +79,22 @@ public class GameManager {
         }
     }
 
-    public void scheduleLobbyPhase(Long lobbyId, RoundStatus roundStatus) {
-            switch (roundStatus) {
-                case WRITING_PROMPT:
-                    this.phaseTimerManager.schedulePhase(
-                            lobbyId,
-                            () -> this.startSelectMusicPhase(lobbyId),
-                            roundStatus.defaultDuration
-                    );
-                    break;
+    public void scheduleLobbyPhase(Long lobbyId) {
+
+        GameSession gameSession = this.gameSessionManager.getGameSession(lobbyId);
+        RoundStatus roundStatus = gameSession.getCurrentRound().getRoundStatus();
+
+        switch (roundStatus) {
+            case WRITING_PROMPT:
+                this.phaseTimerManager.schedulePhase(
+                        lobbyId,
+                        () -> this.startSelectMusicPhase(lobbyId),
+                        roundStatus.defaultDuration
+                );
+                break;
 
 
-            }
+        }
     }
 
     //TODO more precise logic needs to be added here (logic that manages gameSession instance)
@@ -98,7 +102,9 @@ public class GameManager {
     public UserSession connectUser(long gameLobbyId, UserSession newUserSession, Principal principal) {
 
         UserSession connectedUserSession = this.lobbyManager.onUserConnect(gameLobbyId, newUserSession, principal);
-        PlayerState playerState = this.gameSessionManager.addNewUser(gameLobbyId, connectedUserSession);
+        if (this.lobbyManager.getLobbies().get(gameLobbyId).getStatus() == GameLobbyStatus.GAME_IN_PROGRESS) {
+            PlayerState playerState = this.gameSessionManager.addNewUser(gameLobbyId, connectedUserSession);
+        }
 
 
         return connectedUserSession;
@@ -126,7 +132,7 @@ public class GameManager {
 
         // we set the timer for the next phase if game is timed
         if (gameSession.getGameSettings().isTimed()) {
-            this.scheduleLobbyPhase(gameLobbyId, RoundStatus.CHOOSING_SONG);
+            this.scheduleLobbyPhase(gameLobbyId);
         }
 
         this.lobbyManager.sendSystemGameLobbyMessage(gameLobbyId, "Starting Game");

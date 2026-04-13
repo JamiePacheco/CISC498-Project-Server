@@ -46,7 +46,7 @@ public class GameSession {
         this.createdAt = Instant.now();
         this.lastUpdated = Instant.now();
 
-        // this eventually should be made to accept some settings input
+        // load the game settings
         if (gameSettings == null) {
             this.gameSettings = GameSettings.builder()
                     .timed(true)
@@ -56,6 +56,7 @@ public class GameSession {
         } else {
             this.gameSettings = gameSettings;
         }
+
         this.currentRound = RoundSession.builder()
                 .roundStatus(RoundStatus.WRITING_PROMPT)
                 .phaseDuration(RoundStatus.WRITING_PROMPT.defaultDuration)
