@@ -1,5 +1,6 @@
 package com.aux_arena.components.lobby;
 
+import com.aux_arena.components.lobby.model.AtomicOperationResult;
 import com.aux_arena.models.enums.RoundStatus;
 import com.aux_arena.models.session.*;
 import com.aux_arena.models.session.round.Prompt;
@@ -28,6 +29,12 @@ public class GameSessionManager {
     private final Map<Long, GameSession> gameSessions = new ConcurrentHashMap<>();
 
     private final Map<Long, ReentrantLock> gameSessionLocks = new  ConcurrentHashMap<>();
+
+    private final BroadcastService broadcastService;
+
+    public GameSessionManager(BroadcastService broadcastService) {
+        this.broadcastService = broadcastService;
+    }
 
     // TODO should check for player
 
@@ -86,6 +93,10 @@ public class GameSessionManager {
         return modifyGameSessionAtomically(gameLobbyId, gameSession -> gameSession.checkReadyStatus(roundStatus));
     }
 
+    public RoundStatus setRoundStatus(Long gameLobbyId, RoundStatus roundStatus) {
+        return modifyGameSessionAtomically(gameLobbyId, gameSession -> gameSession.setRoundStatus(roundStatus));
+    }
+
     public Prompt submitPrompt(Long gameLobbyId, Prompt prompt) {
         return modifyGameSessionAtomically(gameLobbyId, gameSession -> {
 
@@ -101,31 +112,35 @@ public class GameSessionManager {
 
     public Prompt generatePrompt() {
         return Prompt.builder()
-                .prompt("Song when you on a trip with your slimes and run over a grandma") // TODO make a database of pre-generated prompts
+                .prompt("Song when you are going 100mph in a school zone") // TODO make a database of pre-generated prompts
                 .build();
     }
 
-    public void verifyUserPromptsUnsafe(GameSession gameSession) {
-        RoundSession roundSession = gameSession.getCurrentRound();
+    public void verifyUserPrompts(Long lobbyId) {
+        modifyGameSessionAtomically(lobbyId, gameSession -> {
+            RoundSession roundSession = gameSession.getCurrentRound();
 
-        // check if prompt amount is same amount as active players
-        if (roundSession.getPromptPairs().size() == gameSession.getNonSpectatorPlayers().size()) {
-            return;
-        }
+            // check if prompt amount is same amount as active players
+            if (roundSession.getPromptPairs().size() == gameSession.getNonSpectatorPlayers().size()) {
+                return null;
+            }
 
-        // if the player is not ready then they have not submitted a prompt (thus we generate one for them)
-        List<PlayerState> notReadyPlayers = gameSession
-                .getNonSpectatorPlayers()
-                .stream()
-                .filter(p -> !p.isReady())
-                .toList();
+            List<PlayerState> notReadyPlayers = gameSession
+                    .getNonSpectatorPlayers()
+                    .stream()
+                    .filter(p -> !p.isReady())
+                    .toList();
 
-        for (PlayerState playerState : notReadyPlayers) {
-            Prompt prompt = this.generatePrompt();
-            prompt.setWasGenerated(true);
-            prompt.setAuthorId(playerState.getUserSessionId());
-            roundSession.submitPrompt(prompt);
-        }
+            // if the player is not ready then they have not submitted a prompt (thus we generate one for them)
+            for (PlayerState playerState : notReadyPlayers) {
+                Prompt prompt = this.generatePrompt();
+                prompt.setWasGenerated(true);
+                prompt.setAuthorId(playerState.getUserSessionId());
+                roundSession.submitPrompt(prompt);
+            }
+
+            return null;
+        });
     }
 
 

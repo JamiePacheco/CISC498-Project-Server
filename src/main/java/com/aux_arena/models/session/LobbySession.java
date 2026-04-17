@@ -156,15 +156,6 @@ public class LobbySession {
         return finalAddedUser;
     }
 
-    public UserSession disconnectUser(LobbyUser lobbyUser) {
-        UserSession connectedUser = activeUsers.get(lobbyUser.getLastSocketConnectionId());
-        if (connectedUser != null) {
-            connectedUser.setLastPingTime(Instant.now());
-            connectedUser.setIsSpectator(false);
-        }
-        return connectedUser;
-    }
-
     public UserSession disconnectUser(String principleName) {
         UserSession connectedUser = activeUsers.get(principleName);
         if (connectedUser != null) {
@@ -177,8 +168,18 @@ public class LobbySession {
     }
 
     // TODO fix issue when there are 2+ players and this throws a nullpointerexception
-    public UserSession assignHost() {
-        logger.info("Removing {} as the host", host);
+    public UserSession assignHost(UserSession newHost) {
+
+        if (newHost != null) {
+            if (activeUsers.get(newHost.getTempId()) == null) {
+                throw new RuntimeException("Error new host does not exist");
+            }
+
+            newHost.setHost(true);
+            this.host = newHost;
+            return this.host;
+        }
+
         Optional<UserSession> oldestUser = activeUsers.values().stream()
                 .filter(u -> {
                     logger.info("[{}] {} joined at {}",
@@ -190,13 +191,12 @@ public class LobbySession {
                 })
                 .min(Comparator.comparing(UserSession::getJoinedAt));
 
-        // TODO fix this for when there is only a single user
 
         if (oldestUser.isPresent()) {
-            UserSession newHost = oldestUser.get();
-            newHost.setHost(true);
-            this.host = newHost;
-            return newHost;
+            UserSession newHostSession = oldestUser.get();
+            newHostSession.setHost(true);
+            this.host = newHostSession;
+            return newHostSession;
         }
 
         this.host = null;

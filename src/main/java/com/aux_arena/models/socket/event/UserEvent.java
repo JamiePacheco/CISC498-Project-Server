@@ -1,21 +1,19 @@
-package com.aux_arena.models.socket;
+package com.aux_arena.models.socket.event;
 
 import com.aux_arena.models.enums.message.MessageStatus;
-import com.aux_arena.models.enums.message.MessageType;
-import lombok.AllArgsConstructor;
+import com.aux_arena.models.enums.message.UserEventType;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
 @Builder
-public class Message<T> {
+public class UserEvent<T> {
 
     private T messageContent;
 
     private MessageStatus messageStatus;
 
-    private MessageType messageType;
+    private UserEventType userEventType;
 
     private String Message;
 

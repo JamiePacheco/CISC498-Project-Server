@@ -112,7 +112,10 @@ public class GameSession {
         return isReady;
     }
 
+    public RoundStatus setRoundStatus(RoundStatus roundStatus) {
+        return this.setRoundStatus(roundStatus);
 
+    }
 
     // distribute the prompts among the active players
     public RoundSession distributePrompts() {
