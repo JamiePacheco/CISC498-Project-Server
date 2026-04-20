@@ -1,9 +1,10 @@
 package com.aux_arena.models.session.round;
 
-import com.aux_arena.models.session.PlayerState;
+import lombok.Data;
 
-public class Vote {
-    private PlayerState voter;
+@Data
+public class VoteSubmission {
+    private String voterId;
     private String promptPairId;
     private String submissionAuthorId; // temp id that references PlayerState/UserSession
 }

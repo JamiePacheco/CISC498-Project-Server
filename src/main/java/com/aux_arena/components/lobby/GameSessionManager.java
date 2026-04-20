@@ -3,10 +3,7 @@ package com.aux_arena.components.lobby;
 import com.aux_arena.components.lobby.model.AtomicOperationResult;
 import com.aux_arena.models.enums.RoundStatus;
 import com.aux_arena.models.session.*;
-import com.aux_arena.models.session.round.Prompt;
-import com.aux_arena.models.session.round.PromptPair;
-import com.aux_arena.models.session.round.PromptSubmission;
-import com.aux_arena.models.session.round.RoundSession;
+import com.aux_arena.models.session.round.*;
 import com.aux_arena.models.tables.Game;
 import com.aux_arena.models.tables.User;
 import lombok.Data;
@@ -148,9 +145,6 @@ public class GameSessionManager {
         return modifyGameSessionAtomically(gameLobbyId, gameSession -> gameSession.distributePrompts());
     }
 
-    public RoundSession distributePrompts(GameSession gameSession) {
-        return gameSession.distributePrompts();
-    }
 
     public PromptSubmission submitSongChoice(Long gameLobbyId, PromptSubmission promptSubmission, Principal principal) {
         return modifyGameSessionAtomically(gameLobbyId, gameSession -> {
@@ -170,5 +164,20 @@ public class GameSessionManager {
             return promptSubmission;
         });
     }
+
+    public VoteSubmission submitSongVote(Long gameLobbyId, VoteSubmission voteSubmission) {
+        return modifyGameSessionAtomically(gameLobbyId, gameSession -> {
+            PromptPair promptPair = gameSession
+                    .getCurrentRound()
+                    .getPromptPairs()
+                    .get(voteSubmission.getPromptPairId());
+
+            if (promptPair == null) return null;
+
+            promptPair.getVoteSubmissions().add(voteSubmission);
+            return voteSubmission;
+        });
+    }
+
 
 }

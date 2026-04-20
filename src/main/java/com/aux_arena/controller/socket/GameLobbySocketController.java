@@ -7,6 +7,7 @@ import com.aux_arena.models.enums.message.UserEventType;
 import com.aux_arena.models.session.*;
 import com.aux_arena.models.session.round.Prompt;
 import com.aux_arena.models.session.round.PromptSubmission;
+import com.aux_arena.models.session.round.VoteSubmission;
 import com.aux_arena.models.socket.event.UserEvent;
 import com.aux_arena.models.socket.event.GameLobbyEvent;
 import com.aux_arena.models.tables.LobbyUser;
@@ -236,7 +237,7 @@ public class GameLobbySocketController {
     }
 
     @MessageMapping("/game-lobby/submit-song/{game-lobby-id}")
-    public void submitPrompt(
+    public void submitSong(
             Principal principal,
             @DestinationVariable("game-lobby-id") Long gameLobbyId,
             @Payload PromptSubmission promptSubmission
@@ -261,6 +262,50 @@ public class GameLobbySocketController {
                     .payload(submittedPrompt)
                     .type(MessageEvent.PROMPT_SUBMITTED)
                     .message("prompt received")
+                    .timestamp(Instant.now())
+                    .build();
+
+            messagingTemplate.convertAndSend("/topic/game-lobby/" + gameLobbyId, newPromptEvent);
+
+        } catch (Exception ex) {
+            UserEvent<LobbySession> userEvent = UserEvent.<LobbySession>builder()
+                    .errorMessage("Error processing prompt submission: " + ex.getMessage())
+                    .messageContent(null)
+                    .messageStatus(MessageStatus.FAILED)
+                    .userEventType(UserEventType.LOBBY_UPDATE)
+                    .build();
+
+            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", userEvent);
+        }
+    }
+
+
+    @MessageMapping("/game-lobby/submit-vote/{game-lobby-id}")
+    public void submitSong(
+            Principal principal,
+            @DestinationVariable("game-lobby-id") Long gameLobbyId,
+            @Payload VoteSubmission voteSubmission
+            ) {
+        try {
+
+            VoteSubmission submittedVote = this.gameManager.submitSongVote(gameLobbyId, voteSubmission, principal);
+            // send user verification their prompt has been submitted
+
+            // we send the current snapshot of the lobby so it's bare details can stored to rejoin (not needed but good for display)
+            UserEvent<VoteSubmission> userEvent = UserEvent.<VoteSubmission>builder()
+                    .Message("Vote successfully submitted")
+                    .messageStatus(MessageStatus.SUCCESS)
+                    .messageContent(submittedVote)
+                    .userEventType(UserEventType.LOBBY_UPDATE)
+                    .build();
+
+            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/game-lobby/" + gameLobbyId, userEvent);
+
+
+            GameLobbyEvent<VoteSubmission> newPromptEvent = GameLobbyEvent.<VoteSubmission>builder()
+                    .payload(submittedVote)
+                    .type(MessageEvent.PROMPT_SUBMITTED)
+                    .message(String.format("Vote from user [%s] received", principal.getName()))
                     .timestamp(Instant.now())
                     .build();
 

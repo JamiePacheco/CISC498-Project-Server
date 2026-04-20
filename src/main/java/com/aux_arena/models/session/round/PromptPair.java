@@ -2,11 +2,9 @@ package com.aux_arena.models.session.round;
 
 import com.aux_arena.models.enums.PromptPairStatus;
 import com.aux_arena.models.session.PlayerState;
-import com.aux_arena.models.session.UserSession;
 import lombok.Builder;
 import lombok.Data;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -22,7 +20,7 @@ public class PromptPair {
     //key is users session id in PlayerState
     private Map<String, PromptSubmission> promptSubmissions;
 
-    private List<Vote> votes;
+    private List<VoteSubmission> voteSubmissions;
     private PromptPairStatus status;
 
 }

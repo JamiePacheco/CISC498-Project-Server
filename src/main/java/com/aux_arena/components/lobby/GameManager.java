@@ -325,35 +325,34 @@ public class GameManager {
 
         // check if all the players are ready to move on to presenting stage (all have submitted valid responses)
         if (this.gameSessionManager.checkReadyStatus(gameLobbyId, RoundStatus.PRESENTING)) {
-
-            // need to start presenting the prompts (PRESENTING -> VOTING -> RESULTS and loop until finished)
-            // only need to start the process here
-            withBothLocks(gameLobbyId, (gameSession, lobbySession) -> {
-
-                RoundSession roundSession = gameSession.getCurrentRound();
-
-                // get first prompt to display
-                PromptPair firstPrompt = roundSession.getPromptToDisplay();
-
-                if (firstPrompt == null) throw new RuntimeException("First prompt is null (for some reason...)");
-
-                // TODO add proper event and messaging broadcasting
-
-                return null;
-            });
-
-
-            /* TODO finish implementing phase transition
-                - implement proper broadcasting logic using specific broadcast executor
-                - ensure that proper logic for
-                    a.) everyone is ready so we continue and make sure to cancel scheduled event and manually progress
-                    b.) time ran out and we continue as normal while also scheduling next event
-                    c.) ensure proper messages are being sent to users that tell the time frames
-                - implement vote submission endpoint
-                    - add another option where both songs are ass
-            */
+            this.roundSessionManager.startPresentingPhase(gameLobbyId);
         }
 
         return submittedSong;
+    }
+
+    // TODO add skip method that host can use to skip a currently presented song (maybe add a vote to skip...)
+
+    public VoteSubmission submitSongVote(Long gameLobbyId, VoteSubmission voteSubmission, Principal principal) {
+        UserSession userSession = this.getUserSession(gameLobbyId, principal);
+        voteSubmission.setVoterId(principal.getName());
+
+        VoteSubmission submittedVote = this.gameSessionManager.submitSongVote(gameLobbyId, voteSubmission);
+
+        if (submittedVote == null) {
+            throw new RuntimeException("Error submitting vote")
+        }
+
+        PlayerState playerState = this.gameSessionManager.getPlayerState(gameLobbyId, userSession);
+        playerState.getVoteSubmissions().add(submittedVote);
+
+        playerState.setReady(true);
+
+        if (this.gameSessionManager.checkReadyStatus(gameLobbyId, RoundStatus.SCORING)) {
+            this.roundSessionManager.startScoringPhase(gameLobbyId);
+        }
+
+
+        return submittedVote;
     }
 }

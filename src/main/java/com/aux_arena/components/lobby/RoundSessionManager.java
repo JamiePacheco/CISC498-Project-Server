@@ -2,6 +2,7 @@ package com.aux_arena.components.lobby;
 
 import com.aux_arena.components.scheduling.PhaseTimerManager;
 import com.aux_arena.models.enums.GameLobbyStatus;
+import com.aux_arena.models.enums.PromptPairStatus;
 import com.aux_arena.models.enums.RoundStatus;
 import com.aux_arena.models.enums.message.MessageEvent;
 import com.aux_arena.models.enums.message.UserEventType;
@@ -33,7 +34,10 @@ public class RoundSessionManager {
             RoundStatus roundStatus,
             Instant lastUpdated,
             Long phaseDuration
-    ){};
+    ) {
+    }
+
+    ;
 
     private static Logger log = LoggerFactory.getLogger(RoundSessionManager.class);
 
@@ -62,21 +66,19 @@ public class RoundSessionManager {
     }
 
     public void scheduleLobbyPhase(Long lobbyId, RoundStatus nextPhase) {
-        switch (nextPhase) {
-            case CHOOSING_SONG:
-                this.phaseTimerManager.schedulePhase(
-                        lobbyId,
-                        () -> {
-                            this.gameSessionManager.setRoundStatus(lobbyId, RoundStatus.PRESENTING);
-                            this.startSelectMusicPhase(lobbyId);
-                        },
-                        nextPhase.defaultDuration
-                );
-                break;
-            case PRESENTING:
-        }
+        this.phaseTimerManager.schedulePhase(
+                lobbyId,
+                () -> {
+                    this.gameSessionManager.setRoundStatus(lobbyId, nextPhase);
+                    switch (nextPhase) {
+                        case CHOOSING_SONG -> this.startSelectMusicPhase(lobbyId);
+                        case PRESENTING -> this.startPresentingPhase(lobbyId);
+                        case VOTING -> this.startVotingPhase(lobbyId);
+                    }
+                },
+                nextPhase.defaultDuration
+        );
     }
-
 
     public void startSelectMusicPhase(Long gameLobbyId) {
         // cancel any scheduled events
@@ -92,8 +94,6 @@ public class RoundSessionManager {
         // we broadcast here because we have to handle both manual and scheduled cases
 
         // users should only get the prompts they actually are responding to.
-
-
         String message = "Song Selection Phase Started";
         Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
 
@@ -128,4 +128,60 @@ public class RoundSessionManager {
 
         this.scheduleLobbyPhase(gameLobbyId, RoundStatus.PRESENTING);
     }
+
+    // display phase (presenting -> voting -> results/score) repeats until no prompts left
+
+    public void startPresentingPhase(Long gameLobbyId) {
+        // cancel any scheduled events
+        this.phaseTimerManager.cancelTimer(gameLobbyId);
+
+        // distribute the prompts to the users
+        RoundSession roundSession = this.gameSessionManager.distributePrompts(gameLobbyId);
+        LobbySession lobbySession = this.lobbyManager.getLobbies().get(gameLobbyId);
+
+        // get the first prompt pair to present
+        PromptPair displayPrompt = roundSession.getPromptToDisplay();
+        // turn this into a function
+        int promptNumber = roundSession.getPromptPairs().size() - roundSession.getPromptPairs().values().stream().filter(p -> p.getStatus() != PromptPairStatus.RECEIVED_VOTES).toList().size();
+
+        String message = "Displaying Prompt " + promptNumber;
+        Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+
+        // broadcast the new phase to the users
+        this.broadcastService.broadcastLobbyEvent(
+                lobbySession,
+                new PhaseChangePayload(
+                        RoundStatus.PRESENTING,
+                        Instant.now(),
+                        roundSession.getPhaseDuration()
+                ),
+                message,
+                MessageEvent.PHASE_CHANGE,
+                eventIndex
+        );
+
+        this.sendSystemMessage(gameLobbyId, message);
+
+        eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+
+        this.broadcastService.broadcastLobbyEvent(
+                lobbySession,
+                displayPrompt,
+                message,
+                MessageEvent.DISPLAY_PROMPT,
+                eventIndex
+        );
+
+        this.scheduleLobbyPhase(gameLobbyId, RoundStatus.VOTING);
+    }
+
+    public void startVotingPhase(Long gameLobbyId) {
+        this.phaseTimerManager.cancelTimer(gameLobbyId);
+
+    }
+
+    public void startScoringPhase(Long gameLobbyId) {
+        return;
+    }
+
 }

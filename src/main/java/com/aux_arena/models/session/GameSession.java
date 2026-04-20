@@ -112,8 +112,10 @@ public class GameSession {
         return isReady;
     }
 
-    public RoundStatus setRoundStatus(RoundStatus roundStatus) {
-        return this.setRoundStatus(roundStatus);
+    public RoundStatus setRoundStatus(RoundStatus status) {
+        this.setRoundStatus(status);
+        this.getPlayers().values().forEach(p -> p.setReady(false));
+        return this.getCurrentRound().getRoundStatus();
 
     }
 

@@ -1,5 +1,6 @@
 package com.aux_arena.models.enums.message;
 
+// TODO reorder enum objects so they reflect the orderings of the game
 public enum MessageEvent {
     USER_JOINED,
     UPDATE_PLAYER_STATE,
@@ -16,5 +17,6 @@ public enum MessageEvent {
     SUBMISSION_RECEIVED,
     VOTE_UPDATES,
     NEW_MESSAGE,
-    PHASE_CHANGE
+    PHASE_CHANGE,
+    DISPLAY_PROMPT
 }
