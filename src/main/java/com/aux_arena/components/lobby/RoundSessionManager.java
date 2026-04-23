@@ -9,6 +9,7 @@ import com.aux_arena.models.enums.message.UserEventType;
 import com.aux_arena.models.session.*;
 import com.aux_arena.models.session.round.PromptPair;
 import com.aux_arena.models.session.round.RoundSession;
+import com.aux_arena.models.session.round.VoteSubmission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -53,6 +54,10 @@ public class RoundSessionManager {
         this.phaseTimerManager = phaseTimerManager;
     }
 
+    public RoundSession getRoundSession(Long gameLobbyId) {
+        return this.gameSessionManager.getGameSession(gameLobbyId).getCurrentRound();
+    }
+
     // redefine this in class scope because we don't have access from GameManager
     public void sendSystemMessage(Long lobbyId, String message) {
         GameLobbyMessage savedMessage = this.lobbyManager.sendSystemGameLobbyMessage(lobbyId, message);
@@ -62,7 +67,6 @@ public class RoundSessionManager {
                 lobbySession,
                 savedMessage
         );
-
     }
 
     public void scheduleLobbyPhase(Long lobbyId, RoundStatus nextPhase) {
@@ -74,10 +78,42 @@ public class RoundSessionManager {
                         case CHOOSING_SONG -> this.startSelectMusicPhase(lobbyId);
                         case PRESENTING -> this.startPresentingPhase(lobbyId);
                         case VOTING -> this.startVotingPhase(lobbyId);
+                        case SCORING -> this.startScoringPhase(lobbyId);
+                        case TRANSITIONING -> this.endRound(lobbyId);
                     }
                 },
                 nextPhase.defaultDuration
         );
+    }
+
+    public void startPromptCreationPhase(Long gameLobbyId) {
+        // cancel any scheduled events
+        this.phaseTimerManager.cancelTimer(gameLobbyId);
+
+        // distribute the prompts to the users
+        LobbySession lobbySession = this.lobbyManager.getLobbies().get(gameLobbyId);
+
+        // users should only get the prompts they actually are responding to.
+        String message = "Prompt Creation Phase Started";
+        Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+
+        // broadcast the new phase to the users
+        this.broadcastService.broadcastLobbyEvent(
+                lobbySession,
+                new PhaseChangePayload(
+                        RoundStatus.WRITING_PROMPT,
+                        Instant.now(),
+                        RoundStatus.WRITING_PROMPT.defaultDuration
+                ),
+                message,
+                MessageEvent.PHASE_CHANGE,
+                eventIndex
+        );
+
+
+        if (this.gameSessionManager.getGameSessions().get(gameLobbyId).getGameSettings().isTimed()) {
+            scheduleLobbyPhase(gameLobbyId, RoundStatus.CHOOSING_SONG);
+        }
     }
 
     public void startSelectMusicPhase(Long gameLobbyId) {
@@ -126,8 +162,9 @@ public class RoundSessionManager {
             }
         }
 
-        this.scheduleLobbyPhase(gameLobbyId, RoundStatus.PRESENTING);
-    }
+        if (this.gameSessionManager.getGameSessions().get(gameLobbyId).getGameSettings().isTimed()) {
+            scheduleLobbyPhase(gameLobbyId, RoundStatus.PRESENTING);
+        }    }
 
     // display phase (presenting -> voting -> results/score) repeats until no prompts left
 
@@ -172,16 +209,102 @@ public class RoundSessionManager {
                 eventIndex
         );
 
-        this.scheduleLobbyPhase(gameLobbyId, RoundStatus.VOTING);
+        // should always schedule it (even if rounds are not timed)
+        scheduleLobbyPhase(gameLobbyId, RoundStatus.VOTING);
     }
 
     public void startVotingPhase(Long gameLobbyId) {
         this.phaseTimerManager.cancelTimer(gameLobbyId);
 
+        // distribute the prompts to the users
+        LobbySession lobbySession = this.lobbyManager.getLobbies().get(gameLobbyId);
+
+        String message = "Voting Phase Starting";
+        Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+
+        // broadcast the new phase to the users
+        this.broadcastService.broadcastLobbyEvent(
+                lobbySession,
+                new PhaseChangePayload(
+                        RoundStatus.VOTING,
+                        Instant.now(),
+                        RoundStatus.VOTING.defaultDuration
+                ),
+                message,
+                MessageEvent.PHASE_CHANGE,
+                eventIndex
+        );
+
+        this.sendSystemMessage(gameLobbyId, message);
+        if (this.gameSessionManager.getGameSessions().get(gameLobbyId).getGameSettings().isTimed()) {
+            scheduleLobbyPhase(gameLobbyId, RoundStatus.SCORING);
+        }
     }
 
     public void startScoringPhase(Long gameLobbyId) {
-        return;
+        this.phaseTimerManager.cancelTimer(gameLobbyId);
+
+        PromptPair promptCalculatedScores = this.gameSessionManager.calculatePromptScores(gameLobbyId);
+
+        String message = "Scores calculated";
+        Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+
+        LobbySession lobbySession = this.lobbyManager.getLobbies().get(gameLobbyId);
+
+        // broadcast the new phase to the users
+        this.broadcastService.broadcastLobbyEvent(
+                lobbySession,
+                new PhaseChangePayload(
+                        RoundStatus.SCORING,
+                        Instant.now(),
+                        RoundStatus.SCORING.defaultDuration
+                ),
+                message,
+                MessageEvent.PHASE_CHANGE,
+                eventIndex
+        );
+
+        eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+
+        // broadcast the new prompt pairs to the users
+        this.broadcastService.broadcastLobbyEvent(
+                lobbySession,
+                promptCalculatedScores,
+                message,
+                MessageEvent.SCORE_UPDATES,
+                eventIndex
+        );
+
+        this.scheduleLobbyPhase(gameLobbyId, RoundStatus.TRANSITIONING);
+    }
+
+    public void endRound(Long gameLobbyId) {
+        this.phaseTimerManager.cancelTimer(gameLobbyId);
+
+        RoundSession newRound = gameSessionManager.startNewRound(gameLobbyId);
+
+        // All rounds are finished and game is over
+        if (newRound == null) {
+            // go to final score screen and declare winner
+        }
+
+        String message = "Round " + gameSessionManager.getGameSession(gameLobbyId).getRounds().size() + " Starting";
+        Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+
+        LobbySession lobbySession = this.lobbyManager.getLobbies().get(gameLobbyId);
+
+        // broadcast the new phase to the users
+        this.broadcastService.broadcastLobbyEvent(
+                lobbySession,
+                newRound,
+                message,
+                MessageEvent.ROUND_STARTED,
+                eventIndex
+        );
+
+       this.sendSystemMessage(gameLobbyId, message);
+
+       this.scheduleLobbyPhase(gameLobbyId, RoundStatus.WRITING_PROMPT);
     }
 
 }

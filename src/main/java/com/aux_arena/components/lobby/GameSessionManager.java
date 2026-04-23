@@ -72,6 +72,13 @@ public class GameSessionManager {
                 .get(userSession.getTempId());
     }
 
+    public PlayerState getPlayerState(Long gameLobbyId, String userSessionId) {
+        return this.gameSessions
+                .get(gameLobbyId)
+                .getPlayers()
+                .get(userSessionId);
+    }
+
     // used for when a player joins in the middle of the match
     // should be they are always spectators unless they were disconnected and reconnected
     public PlayerState addNewUser(Long lobbyId, UserSession userSession) {
@@ -179,5 +186,44 @@ public class GameSessionManager {
         });
     }
 
+    public PromptPair calculatePromptScores(Long gameLobbyId) {
+        return modifyGameSessionAtomically(gameLobbyId, gameSession -> {
+            RoundSession roundSession = gameSession.getCurrentRound();
+            PromptPair currentPrompt = roundSession.getPromptPairs().get(roundSession.getCurrentPromptId());
 
+            for (VoteSubmission voteSubmission : currentPrompt.getVoteSubmissions()) {
+                double multiplier = 1.0;
+
+                // if voter is author of prompt we increase score multiplier
+                if (voteSubmission.getVoterId().equals(currentPrompt.getPrompt().getAuthorId())) {
+                    multiplier = 2;
+                }
+
+                this.getPlayerState(
+                        gameLobbyId,
+                        voteSubmission.getSubmissionAuthorId()
+                ).increaseScore((int) (multiplier * 100));
+            }
+            return currentPrompt;
+        });
+    }
+
+    public RoundSession startNewRound(Long gameLobbyId) {
+        return modifyGameSessionAtomically(gameLobbyId, gameSession -> {
+
+            if (gameSession.getRounds().size() == gameSession.getGameSettings().getRounds()) {
+                // this indicates that a new round is not being created and we should end game
+                return null;
+            }
+
+            // create a new round and save it.
+            RoundSession newRound = gameSession.createNewRound();
+
+
+            return newRound;
+        });
+
+
+
+    }
 }

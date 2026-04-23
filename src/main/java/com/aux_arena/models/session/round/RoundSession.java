@@ -30,7 +30,7 @@ public class RoundSession {
     private Long phaseDuration = 30L;
 
     // This is used during the presenting phase
-    private int currentPairIndex = 0;
+    private String currentPromptId;
 
     public Prompt submitPrompt(Prompt prompt) {
         String promptId = UuidGenerator.generateUuid();
@@ -58,6 +58,8 @@ public class RoundSession {
         // choose a prompt at random
         Random rand = new Random();
         PromptPair nextPrompt = viablePrompts.get(rand.nextInt(viablePrompts.size()));
+
+        this.setCurrentPromptId(nextPrompt.getPromptId());
 
         // change the status so it is not included in next filter
         nextPrompt.setStatus(PromptPairStatus.RECEIVED_VOTES);

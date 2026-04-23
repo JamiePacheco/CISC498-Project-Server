@@ -164,8 +164,6 @@ public class GameManager {
             throw new RuntimeException("Bro how the flip we got an active user that isn't anywhere????");
         }
 
-
-
         UserSession disconnectedUserSession = this.lobbyManager.onUserDisconnect(userConnection.getLobbyId(), principal);
         // broadcast the disconnected user
 
@@ -230,16 +228,6 @@ public class GameManager {
 
     }
 
-    /*
-        TODO refactor
-         - Test all lobby functionality and ensure it works (connect, disconnect, host change, reconnect, etc)
-         - implement RoundSessionManager and GameSessionManager methods using similar methodology as LobbyManager (and lobby methods here)
-         - plan how implementing scheduling phases will work
-         - make sure to check that socket messages contain information to keep track of time.
-         - implement sending in votes
-     */
-
-
     public GameSession startGameSession(Long gameLobbyId, GameSettings gameSettings, Principal principal) {
 
         // data format for what we send to client
@@ -257,10 +245,6 @@ public class GameManager {
 
         LobbySession lobbySession = this.lobbyManager.startGameLobby(gameLobbyId);
         GameSession gameSession = this.gameSessionManager.loadGameSession(lobbySession, gameSettings);
-
-        if (gameSession.getGameSettings().isTimed()) {
-            this.roundSessionManager.scheduleLobbyPhase(gameLobbyId, RoundStatus.CHOOSING_SONG);
-        }
 
         long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
 
@@ -340,7 +324,7 @@ public class GameManager {
         VoteSubmission submittedVote = this.gameSessionManager.submitSongVote(gameLobbyId, voteSubmission);
 
         if (submittedVote == null) {
-            throw new RuntimeException("Error submitting vote")
+            throw new RuntimeException("Error submitting vote");
         }
 
         PlayerState playerState = this.gameSessionManager.getPlayerState(gameLobbyId, userSession);

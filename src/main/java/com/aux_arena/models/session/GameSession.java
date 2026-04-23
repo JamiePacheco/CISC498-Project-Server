@@ -36,6 +36,7 @@ public class GameSession {
 
     private RoundSession currentRound;
 
+    private List<RoundSession> rounds;
 
 
     public GameSession(LobbySession lobbySession, GameSettings gameSettings) {
@@ -52,6 +53,7 @@ public class GameSession {
                     .timed(true)
                     .maxDisplayTime(30L)
                     .gameMode(GameMode.PROMPT_BATTLE)
+                    .rounds(1)
                     .build();
         } else {
             this.gameSettings = gameSettings;
@@ -61,6 +63,8 @@ public class GameSession {
                 .roundStatus(RoundStatus.WRITING_PROMPT)
                 .phaseDuration(RoundStatus.WRITING_PROMPT.defaultDuration)
                 .build();
+
+        this.rounds.add(this.currentRound);
 
         // add a new player state for each user session within the current game lobby
         for (String key : lobbySession.getActiveUsers().keySet()) {
@@ -113,10 +117,22 @@ public class GameSession {
     }
 
     public RoundStatus setRoundStatus(RoundStatus status) {
-        this.setRoundStatus(status);
+        this.getCurrentRound().setRoundStatus(status);
         this.getPlayers().values().forEach(p -> p.setReady(false));
         return this.getCurrentRound().getRoundStatus();
+    }
 
+    public RoundSession createNewRound() {
+        // create new round
+        this.currentRound = RoundSession.builder()
+                .roundStatus(RoundStatus.WRITING_PROMPT)
+                .phaseDuration(RoundStatus.WRITING_PROMPT.defaultDuration)
+                .build();
+
+        // add new round to list of all rounds
+        this.rounds.add(this.currentRound);
+
+        return this.currentRound;
     }
 
     // distribute the prompts among the active players

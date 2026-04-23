@@ -14,4 +14,5 @@ public class GameSettings {
     // max time to display song
     private Long maxDisplayTime;
 
+    private int rounds;
 }

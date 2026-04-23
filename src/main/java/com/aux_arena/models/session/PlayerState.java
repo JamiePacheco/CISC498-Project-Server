@@ -21,4 +21,8 @@ public class PlayerState {
     private boolean isSpectator; // spectators should be able to vote, but can't submit prompts or respond to them
     private List<PromptSubmission> promptSubmissions;
     private List<VoteSubmission> voteSubmissions;
+
+    public void increaseScore(int points) {
+        this.score += points;
+    }
 }
