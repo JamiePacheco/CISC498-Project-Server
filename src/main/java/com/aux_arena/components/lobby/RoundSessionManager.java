@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.List;
 
 /*
     Round Session manager primarily handles the phase change events of a game session
@@ -75,14 +76,15 @@ public class RoundSessionManager {
                 () -> {
                     this.gameSessionManager.setRoundStatus(lobbyId, nextPhase);
                     switch (nextPhase) {
+                        case WRITING_PROMPT -> this.startPromptCreationPhase(lobbyId);
                         case CHOOSING_SONG -> this.startSelectMusicPhase(lobbyId);
                         case PRESENTING -> this.startPresentingPhase(lobbyId);
                         case VOTING -> this.startVotingPhase(lobbyId);
                         case SCORING -> this.startScoringPhase(lobbyId);
                         case TRANSITIONING -> this.endRound(lobbyId);
                     }
-                },
-                nextPhase.defaultDuration
+            },
+            this.getRoundSession(lobbyId).getRoundStatus().defaultDuration
         );
     }
 
@@ -164,7 +166,8 @@ public class RoundSessionManager {
 
         if (this.gameSessionManager.getGameSessions().get(gameLobbyId).getGameSettings().isTimed()) {
             scheduleLobbyPhase(gameLobbyId, RoundStatus.PRESENTING);
-        }    }
+        }
+    }
 
     // display phase (presenting -> voting -> results/score) repeats until no prompts left
 
@@ -173,11 +176,17 @@ public class RoundSessionManager {
         this.phaseTimerManager.cancelTimer(gameLobbyId);
 
         // distribute the prompts to the users
-        RoundSession roundSession = this.gameSessionManager.distributePrompts(gameLobbyId);
+        RoundSession roundSession = this.getRoundSession(gameLobbyId);
         LobbySession lobbySession = this.lobbyManager.getLobbies().get(gameLobbyId);
 
         // get the first prompt pair to present
         PromptPair displayPrompt = roundSession.getPromptToDisplay();
+
+        if (displayPrompt == null) {
+            this.endRound(gameLobbyId);
+            return;
+        }
+
         // turn this into a function
         int promptNumber = roundSession.getPromptPairs().size() - roundSession.getPromptPairs().values().stream().filter(p -> p.getStatus() != PromptPairStatus.RECEIVED_VOTES).toList().size();
 
@@ -285,6 +294,7 @@ public class RoundSessionManager {
 
         // All rounds are finished and game is over
         if (newRound == null) {
+            this.endGame(gameLobbyId);
             // go to final score screen and declare winner
         }
 
@@ -304,7 +314,50 @@ public class RoundSessionManager {
 
        this.sendSystemMessage(gameLobbyId, message);
 
-       this.scheduleLobbyPhase(gameLobbyId, RoundStatus.WRITING_PROMPT);
+        // broadcast the new phase to the users
+        this.broadcastService.broadcastLobbyEvent(
+                lobbySession,
+                new PhaseChangePayload(
+                        RoundStatus.TRANSITIONING,
+                        Instant.now(),
+                        RoundStatus.TRANSITIONING.defaultDuration
+                ),
+                message,
+                MessageEvent.PHASE_CHANGE,
+                eventIndex
+        );
+
+
+
+        this.scheduleLobbyPhase(gameLobbyId, RoundStatus.WRITING_PROMPT);
+    }
+
+    public void endGame(Long gameLobbyId) {
+
+        // end the game session
+        this.gameSessionManager.endGameSession(gameLobbyId);
+
+        // update lobby state
+        this.lobbyManager.endLobbyGame(gameLobbyId);
+
+        // calculate the final scores
+        List<PlayerState> scoreResults = this.gameSessionManager.obtainGameWinners(gameLobbyId);
+
+        String message = "Game Finished";
+        Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+
+        LobbySession lobbySession = this.lobbyManager.getLobbies().get(gameLobbyId);
+
+        // broadcast the new phase to the users
+        this.broadcastService.broadcastLobbyEvent(
+                lobbySession,
+                scoreResults,
+                message,
+                MessageEvent.GAME_ENDED,
+                eventIndex
+        );
+
+        this.sendSystemMessage(gameLobbyId, message);
     }
 
 }

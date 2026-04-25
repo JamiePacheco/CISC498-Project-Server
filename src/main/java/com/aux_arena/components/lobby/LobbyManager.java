@@ -1,29 +1,20 @@
 package com.aux_arena.components.lobby;
 
-import com.aux_arena.components.lobby.model.AtomicOperationResult;
 import com.aux_arena.models.enums.GameLobbyStatus;
-import com.aux_arena.models.enums.message.MessageEvent;
 import com.aux_arena.models.session.GameLobbyMessage;
-import com.aux_arena.models.session.GameSession;
 import com.aux_arena.models.session.LobbySession;
 import com.aux_arena.models.session.UserSession;
-import com.aux_arena.models.socket.event.GameLobbyEvent;
 import com.aux_arena.models.tables.GameLobby;
-import com.aux_arena.models.tables.LobbyUser;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 import java.security.Principal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
@@ -67,7 +58,7 @@ public class LobbyManager {
         return lobbySession;
     }
 
-    public LobbySession startGameLobby(Long lobbyId) {
+    public LobbySession startLobbyGame(Long lobbyId) {
         return modifyLobbyAtomically(lobbyId, lobbySession -> {
 
             if (lobbySession == null) {
@@ -77,6 +68,21 @@ public class LobbyManager {
             lobbySession.setActive(true);
             lobbySession.setLastUpdated(Instant.now());
             // new game session should be populated within memory
+            return lobbySession;
+        });
+    }
+
+    public LobbySession endLobbyGame(Long lobbyId) {
+        return modifyLobbyAtomically(lobbyId, lobbySession -> {
+
+            if (lobbySession == null) {
+                throw new RuntimeException("Error ending game lobby????");
+            }
+
+            lobbySession.setStatus(GameLobbyStatus.WAITING);
+            lobbySession.setActive(false);
+            lobbySession.setLastUpdated(Instant.now());
+
             return lobbySession;
         });
     }
@@ -122,9 +128,9 @@ public class LobbyManager {
 
             return lobbySession.assignHost(newHost);
         });
-
-
     }
+
+
 
     // TODO fix this function
     public void cleanupInactiveUsers() {
@@ -199,6 +205,4 @@ public class LobbyManager {
                 null
         );
     }
-
-    // TODO write a function to clean up inactive lobbies.
 }

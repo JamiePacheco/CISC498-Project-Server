@@ -1,6 +1,7 @@
 package com.aux_arena.components.lobby;
 
 import com.aux_arena.components.lobby.model.AtomicOperationResult;
+import com.aux_arena.models.enums.GameStatus;
 import com.aux_arena.models.enums.RoundStatus;
 import com.aux_arena.models.session.*;
 import com.aux_arena.models.session.round.*;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.security.Principal;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -222,8 +224,24 @@ public class GameSessionManager {
 
             return newRound;
         });
+    }
 
+    public List<PlayerState> obtainGameWinners(Long gameLobbyId) {
+        return modifyGameSessionAtomically(gameLobbyId, gameSession -> {
+            // sort the players by their score
+            // TODO add tie breaking logic here as well
+            List<PlayerState> finalScores = gameSession.getPlayers().values().stream().sorted(
+                    Comparator.comparingLong(PlayerState::getScore)
+            ).toList();
 
+            return finalScores;
+        });
+    }
 
+    public GameSession endGameSession(Long gameLobbyId) {
+        return modifyGameSessionAtomically(gameLobbyId, gameSession -> {
+            gameSession.setGameStatus(GameStatus.FINISHED);
+            return gameSession;
+        });
     }
 }

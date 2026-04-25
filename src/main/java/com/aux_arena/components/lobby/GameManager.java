@@ -1,7 +1,6 @@
 package com.aux_arena.components.lobby;
 
 
-import com.aux_arena.components.lobby.model.AtomicOperationResult;
 import com.aux_arena.components.scheduling.PhaseTimerManager;
 import com.aux_arena.models.enums.GameLobbyStatus;
 import com.aux_arena.models.enums.RoundStatus;
@@ -243,7 +242,7 @@ public class GameManager {
             throw new RuntimeException(String.format("Cannot start game, user '%s' is not the host", principal.getName()));
         }
 
-        LobbySession lobbySession = this.lobbyManager.startGameLobby(gameLobbyId);
+        LobbySession lobbySession = this.lobbyManager.startLobbyGame(gameLobbyId);
         GameSession gameSession = this.gameSessionManager.loadGameSession(lobbySession, gameSettings);
 
         long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
@@ -262,6 +261,8 @@ public class GameManager {
 
         this.lobbyManager.sendSystemGameLobbyMessage(gameLobbyId, "Starting Game");
 
+        // immediately start the prompt creation phase
+        this.roundSessionManager.startPromptCreationPhase(gameLobbyId);
         return gameSession;
     }
 

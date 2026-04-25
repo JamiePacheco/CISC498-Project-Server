@@ -109,8 +109,6 @@ public class GameSession {
 
             this.getCurrentRound().setRoundStatus(nextPhase);
             this.getCurrentRound().setPhaseDuration(nextPhase.defaultDuration);
-
-            // schedule the new phase
         }
 
         return isReady;
