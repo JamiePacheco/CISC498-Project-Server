@@ -58,7 +58,8 @@ public class GameSessionManager {
 
     public GameSession loadGameSession(LobbySession lobbySession, GameSettings gameSettings) {
         GameSession gameSession = gameSessions.get(lobbySession.getId());
-        if (gameSession == null) {
+        // create new game instance if gameSession does not exist or it old one is finished
+        if (gameSession == null || gameSession.getGameStatus() == GameStatus.FINISHED) {
             // load new game session
             gameSession = new GameSession(lobbySession, gameSettings);
 
