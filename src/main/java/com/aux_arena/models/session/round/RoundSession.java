@@ -10,10 +10,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Data
@@ -25,7 +22,7 @@ public class RoundSession {
     private Long roundId;
     private RoundStatus roundStatus;
 
-    private Map<String, PromptPair> promptPairs = new ConcurrentHashMap<>();
+    private Map<String, PromptPair> promptPairs = new HashMap<>();
 
     private Long phaseDuration = 30L;
 
@@ -39,6 +36,9 @@ public class RoundSession {
                         .prompt(prompt)
                         .promptId(promptId) // generate a uniqueID for the prompt to use
                         .status(PromptPairStatus.WAITING_FOR_PLAYERS)
+                        .players(new ArrayList<>())
+                        .voteSubmissions(new ArrayList<>())
+                        .promptSubmissions(new HashMap<>())
                         .build()
         );
 

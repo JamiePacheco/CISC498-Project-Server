@@ -12,9 +12,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Data
@@ -36,7 +34,7 @@ public class GameSession {
 
     private RoundSession currentRound;
 
-    private List<RoundSession> rounds;
+    private List<RoundSession> rounds = new ArrayList<>();
 
 
     public GameSession(LobbySession lobbySession, GameSettings gameSettings) {
@@ -62,6 +60,7 @@ public class GameSession {
         this.currentRound = RoundSession.builder()
                 .roundStatus(RoundStatus.WRITING_PROMPT)
                 .phaseDuration(RoundStatus.WRITING_PROMPT.defaultDuration)
+                .promptPairs(new HashMap<>())
                 .build();
 
         this.rounds.add(this.currentRound);
@@ -72,6 +71,9 @@ public class GameSession {
                     .ready(false)
                     .score(0L)
                     .userId(lobbySession.getActiveUsers().get(key).getUserId())
+                    .userSessionId(lobbySession.getActiveUsers().get(key).getTempId())
+                    .promptSubmissions(new ArrayList<>())
+                    .voteSubmissions(new ArrayList<>())
                     .isSpectator(lobbySession.getActiveUsers().get(key).getIsSpectator())
                     .build();
 
@@ -84,6 +86,9 @@ public class GameSession {
                 .ready(false)
                 .score(0L)
                 .userId(userSession.getUserId())
+                .userSessionId(userSession.getTempId())
+                .voteSubmissions(new ArrayList<>())
+                .promptSubmissions(new ArrayList<>())
                 .isSpectator(userSession.getIsSpectator())
                 .build();
 
@@ -92,13 +97,13 @@ public class GameSession {
     }
 
     public List<PlayerState> getNonSpectatorPlayers() {
-        return players.values().stream().filter(u -> u.isSpectator()).toList();
+        return players.values().stream().filter(u -> !u.isSpectator()).toList();
     }
 
     public boolean checkReadyStatus(RoundStatus nextPhase) {
         // all non spectator players are ready;
         boolean isReady = this.getNonSpectatorPlayers().stream()
-                .filter(u -> u.isReady())
+                .filter(PlayerState::isReady)
                 .toList()
                 .size() == this.getNonSpectatorPlayers().size();
 
@@ -136,7 +141,7 @@ public class GameSession {
     // distribute the prompts among the active players
     public RoundSession distributePrompts() {
 
-        List<PromptPair> promptPairs = this.currentRound.getPromptPairs().values().stream().toList();
+        List<PromptPair> promptPairs = new ArrayList<>(this.currentRound.getPromptPairs().values().stream().toList());
         Collections.shuffle(promptPairs);
         int n = promptPairs.size();
 

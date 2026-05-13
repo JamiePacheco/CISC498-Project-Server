@@ -112,7 +112,7 @@ public class GameSessionManager {
 
             // set the author of prompt to being ready for next game state
 
-            gameSession.getPlayers().get(prompt.getAuthorId()).setReady(true);
+            gameSession.getPlayers().get(submittedPrompt.getAuthorId()).setReady(true);
             return submittedPrompt;
         });
     }

@@ -1,5 +1,7 @@
 package com.aux_arena.components.scheduling;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.*;
@@ -17,11 +19,15 @@ public class PhaseTimerManager {
         this.scheduler = scheduler;
     }
 
+    private static Logger logger = LoggerFactory.getLogger(PhaseTimerManager.class);
+
     public void schedulePhase(Long lobbyId, Runnable task, long delaySeconds) {
         Runnable safeTask = () -> {
             try {
                 task.run();
             } catch (Exception e) {
+                logger.info("Error running scheduled task for lobby {}", lobbyId);
+                logger.info(e.toString());
                 // TODO implement proper logging/notifications for lobby
             } finally {
                 activeTimers.remove(lobbyId);

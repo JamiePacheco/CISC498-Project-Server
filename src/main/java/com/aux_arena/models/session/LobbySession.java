@@ -63,7 +63,7 @@ public class LobbySession {
     public long getGameLobbyMessageIndex() {
         long index = gameLobbyMessageIndex;
         logger.info("Message index has been incremented to {}", index);
-        this.gameLobbyMessageIndex++;
+        ++this.gameLobbyMessageIndex;
         return index;
     }
 

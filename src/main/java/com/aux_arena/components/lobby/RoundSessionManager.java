@@ -15,7 +15,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /*
     Round Session manager primarily handles the phase change events of a game session
@@ -74,6 +76,7 @@ public class RoundSessionManager {
         this.phaseTimerManager.schedulePhase(
                 lobbyId,
                 () -> {
+                    log.info("Changing phase: {}", nextPhase );
                     this.gameSessionManager.setRoundStatus(lobbyId, nextPhase);
                     switch (nextPhase) {
                         case WRITING_PROMPT -> this.startPromptCreationPhase(lobbyId);
@@ -129,44 +132,57 @@ public class RoundSessionManager {
         RoundSession roundSession = this.gameSessionManager.distributePrompts(gameLobbyId);
         LobbySession lobbySession = this.lobbyManager.getLobbies().get(gameLobbyId);
 
-        // we broadcast here because we have to handle both manual and scheduled cases
-
-        // users should only get the prompts they actually are responding to.
-        String message = "Song Selection Phase Started";
-        Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
-
-        // broadcast the new phase to the users
-        this.broadcastService.broadcastLobbyEvent(
-                lobbySession,
-                new PhaseChangePayload(
-                        RoundStatus.CHOOSING_SONG,
-                        Instant.now(),
-                        roundSession.getPhaseDuration()
-                ),
-                message,
-                MessageEvent.PHASE_CHANGE,
-                eventIndex
-        );
-
-        this.sendSystemMessage(gameLobbyId, message);
+        // want to make sure all prompts are distributed before we change phases
+        List<CompletableFuture<Void>> assignmentFutures = new ArrayList<>();
 
         // could parallelize this but idgaf(lip)
         for (PromptPair promptPair : roundSession.getPromptPairs().values()) {
+            log.info("Assigning Prompt: [{}] to users [{}] [{}]",
+                    promptPair.getPrompt().getPrompt(),
+                    promptPair.getPlayers().get(0).getUserSessionId(),
+                    promptPair.getPlayers().get(1).getUserSessionId()
+            );
+
             for (PlayerState playerState : promptPair.getPlayers()) {
                 UserSession userSession = this.lobbyManager.getUserSessions().get(playerState.getUserSessionId());
-                this.broadcastService.broadcastUserEvent(
+
+                // add completable to track which broadcasts are completed
+                assignmentFutures.add(this.broadcastService.broadcastUserEvent(
                         lobbySession,
                         userSession,
                         promptPair,
                         "prompt assigned",
                         UserEventType.PROMPT_ASSIGNED
-                );
+                ));
             }
         }
+            // we broadcast here because we have to handle both manual and scheduled cases
 
-        if (this.gameSessionManager.getGameSessions().get(gameLobbyId).getGameSettings().isTimed()) {
-            scheduleLobbyPhase(gameLobbyId, RoundStatus.PRESENTING);
-        }
+        // make sure that all of the broadcasts are finished first
+        CompletableFuture.allOf(assignmentFutures.toArray(new CompletableFuture[0]))
+                .thenRun(() -> {
+                    String message = "Song Selection Phase Started";
+                    Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+
+                    // broadcast the new phase to the users
+                    this.broadcastService.broadcastLobbyEvent(
+                            lobbySession,
+                            new PhaseChangePayload(
+                                    RoundStatus.CHOOSING_SONG,
+                                    Instant.now(),
+                                    roundSession.getPhaseDuration()
+                            ),
+                            message,
+                            MessageEvent.PHASE_CHANGE,
+                            eventIndex
+                    );
+
+                    this.sendSystemMessage(gameLobbyId, message);
+
+                    if (this.gameSessionManager.getGameSessions().get(gameLobbyId).getGameSettings().isTimed()) {
+                        scheduleLobbyPhase(gameLobbyId, RoundStatus.PRESENTING);
+                    }
+                });
     }
 
     // display phase (presenting -> voting -> results/score) repeats until no prompts left
@@ -193,6 +209,16 @@ public class RoundSessionManager {
         String message = "Displaying Prompt " + promptNumber;
         Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
 
+        this.broadcastService.broadcastLobbyEvent(
+                lobbySession,
+                displayPrompt,
+                message,
+                MessageEvent.DISPLAY_PROMPT,
+                eventIndex
+        );
+
+        eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+
         // broadcast the new phase to the users
         this.broadcastService.broadcastLobbyEvent(
                 lobbySession,
@@ -208,19 +234,10 @@ public class RoundSessionManager {
 
         this.sendSystemMessage(gameLobbyId, message);
 
-        eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
-
-        this.broadcastService.broadcastLobbyEvent(
-                lobbySession,
-                displayPrompt,
-                message,
-                MessageEvent.DISPLAY_PROMPT,
-                eventIndex
-        );
-
         // should always schedule it (even if rounds are not timed)
         scheduleLobbyPhase(gameLobbyId, RoundStatus.VOTING);
     }
+
 
     public void startVotingPhase(Long gameLobbyId) {
         this.phaseTimerManager.cancelTimer(gameLobbyId);

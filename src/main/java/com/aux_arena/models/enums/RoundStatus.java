@@ -3,12 +3,12 @@ package com.aux_arena.models.enums;
 public enum RoundStatus {
     TRANSITIONING(15L),
     WAITING(0L),
-    SCORING(15L),
-    VOTING(45L),
-    PRESENTING(30L),
-    CHOOSING_SONG(120L),
+    SCORING(20L),
+    VOTING(30L),
+    PRESENTING(60L),
+    CHOOSING_SONG(60L),
 
-    WRITING_PROMPT(60L);
+    WRITING_PROMPT(30L);
 
     public Long defaultDuration;
 //    public RoundStatus nextPhase;

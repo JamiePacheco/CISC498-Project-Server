@@ -68,6 +68,7 @@ public class LobbyManager {
             lobbySession.setActive(true);
             lobbySession.setLastUpdated(Instant.now());
             // new game session should be populated within memory
+            log.info("Lobby {} status updated to in progress", lobbyId);
             return lobbySession;
         });
     }

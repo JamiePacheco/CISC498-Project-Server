@@ -31,7 +31,7 @@ public class BroadcastService {
         this.messagingTemplate = simpMessagingTemplate;
     }
 
-    public <T> void broadcastLobbyEvent(
+    public <T> CompletableFuture<Void> broadcastLobbyEvent(
             LobbySession lobbySession,
             T eventContent,
             String message,
@@ -46,16 +46,22 @@ public class BroadcastService {
                 .sequence(eventSequence)
                 .build();
 
+        log.info(String.format("[Lobby %d] %s %s %d", lobbySession.getId(), lobbyEvent.getType(), lobbyEvent.getMessage(), lobbyEvent.getSequence()));
+
         // this will run on a separate thread specifically allocated for broadcasting
-        CompletableFuture.runAsync(
+        return CompletableFuture.runAsync(
                 () -> messagingTemplate.convertAndSend("/topic/game-lobby/" + lobbySession.getId(), lobbyEvent),
                 broadcastExecutor
-        );
-
-        log.info(String.format("[Lobby %d] %s %s", lobbySession.getId(), lobbyEvent.getType(), lobbyEvent.getMessage()));
+        ).exceptionally(ex -> {
+            log.error(
+                    "Failed to broadcast event {} to lobby {}: {}",
+                    eventContent, lobbySession.getId(), ex.getMessage(), ex
+            );
+            return null;
+        });
     }
 
-    public <T> void broadcastUserEvent(
+    public <T> CompletableFuture<Void> broadcastUserEvent(
             LobbySession lobbySession,
             UserSession userSession,
             T eventContent,
@@ -69,21 +75,26 @@ public class BroadcastService {
                 .userEventType(userEventType)
                 .build();
 
+        log.info(String.format("[Lobby %d] %s %s", lobbySession.getId(), userEvent.getUserEventType(), userEvent.getMessage()));
+
         // this will run on a separate thread specifically allocated for broadcasting
-        CompletableFuture.runAsync(
+        return CompletableFuture.runAsync(
                 () -> messagingTemplate.convertAndSendToUser(
                         userSession.getTempId(),
                         "/queue/game-lobby/" + lobbySession.getId(),
                         userEvent
                 ),
                 broadcastExecutor
-        );
-
-        log.info(String.format("[Lobby %d] %s %s", lobbySession.getId(), userEvent.getUserEventType(), userEvent.getMessage()));
-
+        ).exceptionally(ex -> {
+            log.error(
+                    "Failed to broadcast event {} to lobby {}: {}",
+                    eventContent, lobbySession.getId(), ex.getMessage(), ex
+            );
+            return null;
+        });
     }
 
-    public void broadcastLobbyMessage(
+    public CompletableFuture<Void> broadcastLobbyMessage(
             LobbySession lobbySession,
             GameLobbyMessage gameLobbyMessage
     ) {
@@ -96,13 +107,12 @@ public class BroadcastService {
                 .sequence(gameLobbyMessage.getMessageIndex())
                 .build();
 
-        CompletableFuture.runAsync(
+        log.info(String.format("[Lobby %d] %s %s", lobbySession.getId(), lobbyMessage.getType(), lobbyMessage.getMessage()));
+
+        return CompletableFuture.runAsync(
                 () ->  messagingTemplate.convertAndSend("/topic/game-lobby/message/" + lobbySession.getId(), lobbyMessage),
                 broadcastExecutor
         );
-
-        log.info(String.format("[Lobby %d] %s %s", lobbySession.getId(), lobbyMessage.getType(), lobbyMessage.getMessage()));
-
     }
 
 }

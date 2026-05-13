@@ -168,19 +168,23 @@ public class GameLobbySocketController {
             MessageHeaders messageHeaders
     ) {
         try {
-
             GameSession gameSession = this.gameManager.startGameSession(gameLobbyId, gameSettings, principal);
+            log.info("Started Game Session for lobby {}", gameLobbyId);
 
-            GameLobbyEvent<GameSession> gameStartedEvent = GameLobbyEvent.<GameSession>builder()
-                    .payload(gameSession)
-                    .type(MessageEvent.GAME_STARTED)
-                    .message(String.format("Starting game for lobby %s", gameSession.getLobbySessionId()))
-                    .timestamp(Instant.now())
-                    .build();
 
-            messagingTemplate.convertAndSend("/topic/game-lobby/" + gameLobbyId, gameStartedEvent);
+
+//           GameLobbyEvent<GameSession> gameStartedEvent = GameLobbyEvent.<GameSession>builder()
+//                    .payload(gameSession)
+//                    .type(MessageEvent.GAME_STARTED)
+//                    .message(String.format("Starting game for lobby %s", gameSession.getLobbySessionId()))
+//                    .timestamp(Instant.now())
+//                    .build();
+//
+//            messagingTemplate.convertAndSend("/topic/game-lobby/" + gameLobbyId, gameStartedEvent);
 
         } catch (Exception ex) {
+            log.info("Error starting game session for lobby {}", gameLobbyId);
+            log.info(ex.getMessage());
             UserEvent<LobbySession> userEvent = UserEvent.<LobbySession>builder()
                     .errorMessage("Error Starting Game: " + ex.getMessage())
                     .messageContent(null)
@@ -200,7 +204,6 @@ public class GameLobbySocketController {
             @Payload Prompt prompt
     ) {
         try {
-
             Prompt submittedPrompt = this.gameManager.submitRoundPrompt(gameLobbyId, prompt, principal);
             // send user verification their prompt has been submitted
 
@@ -213,16 +216,6 @@ public class GameLobbySocketController {
                     .build();
 
             messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/game-lobby/" + gameLobbyId, userEvent);
-
-
-            GameLobbyEvent<Prompt> newPromptEvent = GameLobbyEvent.<Prompt>builder()
-                    .payload(submittedPrompt)
-                    .type(MessageEvent.PROMPT_SUBMITTED)
-                    .message("prompt received")
-                    .timestamp(Instant.now())
-                    .build();
-
-            messagingTemplate.convertAndSend("/topic/game-lobby/" + gameLobbyId, newPromptEvent);
 
         } catch (Exception ex) {
             UserEvent<LobbySession> userEvent = UserEvent.<LobbySession>builder()
@@ -258,14 +251,14 @@ public class GameLobbySocketController {
             messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/game-lobby/" + gameLobbyId, userEvent);
 
 
-            GameLobbyEvent<PromptSubmission> newPromptEvent = GameLobbyEvent.<PromptSubmission>builder()
-                    .payload(submittedPrompt)
-                    .type(MessageEvent.PROMPT_SUBMITTED)
-                    .message("prompt received")
-                    .timestamp(Instant.now())
-                    .build();
-
-            messagingTemplate.convertAndSend("/topic/game-lobby/" + gameLobbyId, newPromptEvent);
+//            GameLobbyEvent<PromptSubmission> newPromptEvent = GameLobbyEvent.<PromptSubmission>builder()
+//                    .payload(submittedPrompt)
+//                    .type(MessageEvent.PROMPT_SUBMITTED)
+//                    .message("prompt received")
+//                    .timestamp(Instant.now())
+//                    .build();
+//
+//            messagingTemplate.convertAndSend("/topic/game-lobby/" + gameLobbyId, newPromptEvent);
 
         } catch (Exception ex) {
             UserEvent<LobbySession> userEvent = UserEvent.<LobbySession>builder()
@@ -287,7 +280,6 @@ public class GameLobbySocketController {
             @Payload VoteSubmission voteSubmission
             ) {
         try {
-
             VoteSubmission submittedVote = this.gameManager.submitSongVote(gameLobbyId, voteSubmission, principal);
             // send user verification their prompt has been submitted
 
@@ -300,7 +292,6 @@ public class GameLobbySocketController {
                     .build();
 
             messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/game-lobby/" + gameLobbyId, userEvent);
-
 
             GameLobbyEvent<VoteSubmission> newPromptEvent = GameLobbyEvent.<VoteSubmission>builder()
                     .payload(submittedVote)

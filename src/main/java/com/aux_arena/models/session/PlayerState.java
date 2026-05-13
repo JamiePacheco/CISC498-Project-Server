@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -19,8 +20,8 @@ public class PlayerState {
     private Long score;
     private boolean ready; // this indicates if they are ready to move onto the next round;
     private boolean isSpectator; // spectators should be able to vote, but can't submit prompts or respond to them
-    private List<PromptSubmission> promptSubmissions;
-    private List<VoteSubmission> voteSubmissions;
+    private List<PromptSubmission> promptSubmissions = new ArrayList<>();
+    private List<VoteSubmission> voteSubmissions = new ArrayList<>();
 
     public void increaseScore(int points) {
         this.score += points;

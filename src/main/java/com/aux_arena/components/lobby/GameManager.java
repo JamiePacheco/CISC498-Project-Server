@@ -7,7 +7,10 @@ import com.aux_arena.models.enums.RoundStatus;
 import com.aux_arena.models.enums.message.MessageEvent;
 import com.aux_arena.models.session.*;
 import com.aux_arena.models.session.round.*;
+import com.aux_arena.models.socket.event.GameLobbyEvent;
 import lombok.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.security.Principal;
@@ -25,7 +28,14 @@ public class GameManager {
     private final PhaseTimerManager phaseTimerManager;
     private final RoundSessionManager roundSessionManager;
     private final BroadcastService broadcastService;
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+    private record StartGamePayload(
+            GameSession gameSession,
+            Instant lastUpdated,
+            GameLobbyStatus lobbyStatus
+    ){};
+
+    private static Logger logger = LoggerFactory.getLogger(GameManager.class);
 
     public GameManager(
             GameSessionManager gameSessionManager,
@@ -168,13 +178,6 @@ public class GameManager {
 
         LobbySession lobbySession = this.getLobbySession(userConnection.getLobbyId());
 
-
-        if (disconnectedUserSession.getHost()) {
-            // this indicates that we want the oldest member as new host
-            this.promoteUserToHost(lobbySession.getId(), null, null);
-            disconnectedUserSession.setHost(false);
-        }
-
         Long eventIndex = this.lobbyManager.nextEventSequence(lobbySession.getId());
         String message = String.format("%s disconnected", disconnectedUserSession.getDisplayName());
 
@@ -185,13 +188,17 @@ public class GameManager {
                 message,
                 MessageEvent.USER_LEFT,
                 eventIndex
-        );
+        ).thenRun(() -> {
+            // send out system message of new user
+            this.sendSystemMessage(lobbySession.getId(), message);
 
-        // send out system message of new user
-        this.sendSystemMessage(lobbySession.getId(), message);
-
-        // check if a new host needs to be assigned
-
+            // check if a new host needs to be assigned
+            if (disconnectedUserSession.getHost()) {
+                // this indicates that we want the oldest member as new host
+                this.promoteUserToHost(lobbySession.getId(), null, null);
+                disconnectedUserSession.setHost(false);
+            }
+        });
 
         return disconnectedUserSession;
     }
@@ -204,7 +211,7 @@ public class GameManager {
             return;
         }
 
-        long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+        Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
         String message = String.format("%s promoted to host", newHost.getDisplayName());
 
         LobbySession lobbySession = this.getLobbySession(gameLobbyId);
@@ -230,11 +237,6 @@ public class GameManager {
     public GameSession startGameSession(Long gameLobbyId, GameSettings gameSettings, Principal principal) {
 
         // data format for what we send to client
-        record StartGamePayload(
-                GameSession gameSession,
-                Instant lastUpdated,
-                GameLobbyStatus lobbyStatus
-        ){};
 
         UserSession host = this.getUserSession(gameLobbyId, principal);
 
@@ -242,10 +244,12 @@ public class GameManager {
             throw new RuntimeException(String.format("Cannot start game, user '%s' is not the host", principal.getName()));
         }
 
+        logger.info("Starting game for lobby {}", gameLobbyId);
+
         LobbySession lobbySession = this.lobbyManager.startLobbyGame(gameLobbyId);
         GameSession gameSession = this.gameSessionManager.loadGameSession(lobbySession, gameSettings);
 
-        long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+        Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
 
         this.broadcastService.broadcastLobbyEvent(
                 lobbySession,
@@ -257,12 +261,14 @@ public class GameManager {
                 "Starting Game",
                 MessageEvent.GAME_STARTED,
                 eventIndex
+        ).thenRun(() -> {
+                this.sendSystemMessage(gameLobbyId, "Game Starting");
+                this.roundSessionManager.startPromptCreationPhase(gameLobbyId);
+            }
         );
 
-        this.lobbyManager.sendSystemGameLobbyMessage(gameLobbyId, "Starting Game");
 
         // immediately start the prompt creation phase
-        this.roundSessionManager.startPromptCreationPhase(gameLobbyId);
         return gameSession;
     }
 
@@ -272,18 +278,28 @@ public class GameManager {
 
         if (userSession == null) throw new RuntimeException("User [" + principal.getName() +  "] is not within lobby");
 
+        PlayerState playerState = this.gameSessionManager.getPlayerState(gameLobbyId, userSession);
+
         // get the user's player state and assign it to the author of the prompt
-        prompt.setAuthorId(this.gameSessionManager.getPlayerState(gameLobbyId, userSession).getUserSessionId());
+        prompt.setAuthorId(playerState.getUserSessionId());
 
         // submit prompt to the current round
         Prompt submittedPrompt = this.gameSessionManager.submitPrompt(gameLobbyId, prompt);
 
-        this.lobbyManager.sendSystemGameLobbyMessage(
-                gameLobbyId,
-                String.format("%s has submitted their prompt", userSession.getDisplayName())
+        LobbySession lobbySession = this.lobbyManager.startLobbyGame(gameLobbyId);
+        Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+
+        this.broadcastService.broadcastLobbyEvent(
+                lobbySession,
+                submittedPrompt,
+                "prompt received",
+                MessageEvent.PROMPT_SUBMITTED,
+                eventIndex
+        ).thenRun(() -> {
+                    this.sendSystemMessage(gameLobbyId, String.format("%s has submitted their prompt", userSession.getDisplayName()));
+            }
         );
 
-        // check if all players have submitted prompts, if so set phase to choosing song
         if (this.gameSessionManager.checkReadyStatus(gameLobbyId, RoundStatus.CHOOSING_SONG)) {
             // manually start the phase change
             this.roundSessionManager.startSelectMusicPhase(gameLobbyId);
@@ -306,6 +322,20 @@ public class GameManager {
         // if we make it so the prompts are variable this has to be changed to number of responses need
         if (playerState.getPromptSubmissions().size() == 2) {
             playerState.setReady(true);
+
+            LobbySession lobbySession = this.lobbyManager.startLobbyGame(gameLobbyId);
+            Long eventIndex = this.lobbyManager.nextEventSequence(gameLobbyId);
+
+            this.broadcastService.broadcastLobbyEvent(
+                    lobbySession,
+                    playerState.getUserSessionId(),
+                    "songs received",
+                    MessageEvent.SUBMISSION_RECEIVED,
+                    eventIndex
+            ).thenRun(() -> {
+                    this.sendSystemMessage(gameLobbyId, String.format("%s has submitted their songs", userSession.getDisplayName()));
+                }
+            );
         }
 
         // check if all the players are ready to move on to presenting stage (all have submitted valid responses)
