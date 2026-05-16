@@ -18,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+// handle broadcast events within socket architectureBr
 @Component
 public class BroadcastService {
 

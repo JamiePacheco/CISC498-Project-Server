@@ -19,6 +19,10 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+
+
+
+// lobby session object to be stored in memory
 @Data
 @Builder
 @AllArgsConstructor

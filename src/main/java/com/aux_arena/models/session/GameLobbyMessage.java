@@ -5,6 +5,8 @@ import lombok.Data;
 
 import java.time.Instant;
 
+
+// represents a text message in game lobby
 @Data
 @Builder
 public class GameLobbyMessage {

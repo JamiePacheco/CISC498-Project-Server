@@ -20,6 +20,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
 
+
+// primary component for managing all games and respective logic
 @Data
 @Component
 public class GameManager {
@@ -112,8 +114,6 @@ public class GameManager {
 
     }
 
-    //TODO more precise logic needs to be added here (logic that manages gameSession instance)
-
     public UserSession connectUser(long lobbyId, UserSession newUserSession, Principal principal) {
 
         UserSession connectedUser = this.lobbyManager.onUserConnect(lobbyId, newUserSession, principal);
@@ -157,7 +157,6 @@ public class GameManager {
         return connectedUser;
     }
 
-    //TODO more precise logic needs to be added here (logic that manages gameSession instance)
     public UserSession disconnectUser(Long gameLobbyId, Principal principal) {
         UserSession disconnectedUserSession = this.lobbyManager.onUserDisconnect(gameLobbyId, principal);
 

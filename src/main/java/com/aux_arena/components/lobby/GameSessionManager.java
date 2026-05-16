@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
+// handle game sessions loaded in memory
 @Data
 @Component
 public class GameSessionManager {

@@ -18,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
+// handle the lobby sessions that are in memory
 @Component
 @Data
 public class LobbyManager {

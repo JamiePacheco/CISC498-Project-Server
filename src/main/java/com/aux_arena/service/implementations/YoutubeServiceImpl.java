@@ -15,8 +15,8 @@ import java.net.URI;
 public class YoutubeServiceImpl implements YoutubeService {
 
     // TODO change this to a env variable
-//    @Value("{youtube.api-key}")
-    private String apiKey = "AIzaSyCWzGzPWjy-9R1lQJsTuQcobsXOenYSaVI";
+    @Value("{youtube.api-key}")
+    private String apiKey;
 
 //    @Value("{youtube.url}")
     private String baseUrl = "https://www.googleapis.com/youtube/v3";

@@ -11,6 +11,7 @@ import io.jsonwebtoken.security.Keys;
 import java.security.Key;
 import java.util.Date;
 
+// utility class to help with generating and managing JWT from web requests
 @Component
 public class JwtUtil {
 
