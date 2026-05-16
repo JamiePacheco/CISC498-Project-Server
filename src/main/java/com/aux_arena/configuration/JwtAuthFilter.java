@@ -31,6 +31,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final Set<String> PUBLIC_ENDPOINTS = Set.of(
             "/api/v1/auth/**",
+            "/api/v1/game-lobby",
+            "/api/v1/lobby-session/connect",
             "/ws/**",
             "/swagger-ui/**",
             "/v3/api-docs/**",
@@ -83,8 +85,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
+            // TODO this should check UserSession DB instead of email so change it
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
             if (userDetails == null) {
+                log.info("Creating guest account for endpoint [{}]", request.getServletPath());
                 userDetails = User.withUsername(username)
                         .password("")
                         .roles("GUEST")

@@ -4,7 +4,6 @@ package com.aux_arena.controller.rest;
 import com.aux_arena.models.enums.Roles;
 import com.aux_arena.models.rest.Response;
 import com.aux_arena.models.session.LobbySession;
-import com.aux_arena.models.tables.GameLobby;
 import com.aux_arena.models.tables.LobbyUser;
 import com.aux_arena.service.definitions.LobbySessionService;
 import com.aux_arena.utility.JwtUtil;
@@ -44,10 +43,16 @@ public class LobbySessionController {
             HttpServletRequest request
     ) {
         try {
-            String jwt = jwtUtil.extractJwtFromCookie(request);
-            String username = jwt == null ? null : jwtUtil.extractUsername(jwt);
+            String username = null;
+            String jwt = null;
+            try {
+                jwt = jwtUtil.extractJwtFromCookie(request);
+                username = jwt == null ? null : jwtUtil.extractUsername(jwt);
+            } catch (Exception e) {
+                log.error("Error parsing JWT [{}]", e.getMessage());
+            }
 
-            log.info("Connecting user with username [{}] and principle [{}]", username);
+            log.info("Connecting user with username [{}]", username);
 
             LobbySession gameLobby = lobbySessionService.connectToGameLobby(
                     lobbyCode,
@@ -61,11 +66,12 @@ public class LobbySessionController {
             if (lobbyUser.getRole() == Roles.GUEST) {
                 // check if the user already has a JWT within their response header
                 // TODO put into its own service method for better testing practices
+                log.info("Checking if user [{}] is in lobby [{}] user list", username, lobbyCode);
                 if (username == null || !gameLobby.getActiveUsers().containsKey(username)) {
                     // generate a cookie that lasts for 30 minutes (extend when the game actually begins)
-                    String token = jwtUtil.generateToken(lobbyUser.getGuestIdentifier(), 30 * 60_000);
+                    String token = jwtUtil.generateToken(lobbyUser.getGuestIdentifier(), 60 * 60_000);
                     Cookie cookie = jwtUtil.generateJwtCookie(token);
-                    log.info("Cookie created for user [{}] with guest identifier [{}]", username, lobbyUser.getGuestIdentifier());
+                    log.info("Cookie [{}] created for user [{}] with guest identifier [{}]", jwtUtil.extractUsername(cookie.getValue()), username, lobbyUser.getGuestIdentifier());
                     response.addCookie(cookie);
                 } else {
                     log.info("User {} [{}] is reconnecting", username, jwt);

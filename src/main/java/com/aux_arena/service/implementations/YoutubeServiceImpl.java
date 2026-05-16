@@ -15,8 +15,8 @@ import java.net.URI;
 public class YoutubeServiceImpl implements YoutubeService {
 
     // TODO change this to a env variable
-//    @Value("{youtube.api-key}")
-    private String apiKey = "AIzaSyCWzGzPWjy-9R1lQJsTuQcobsXOenYSaVI";
+    @Value("{youtube.api-key}")
+    private String apiKey;
 
 //    @Value("{youtube.url}")
     private String baseUrl = "https://www.googleapis.com/youtube/v3";
@@ -27,18 +27,30 @@ public class YoutubeServiceImpl implements YoutubeService {
 
     @Override
     public JsonNode searchMusic(String query) {
-        String url = UriComponentsBuilder.fromUriString(baseUrl + "/search")
+        // 1. Appending -"#shorts" and -"shorts" to the query string
+        // This is the most effective way to filter < 60s content when duration is 'any'
+        String refinedQuery = query + " music -\"shorts\"";
+
+        URI uri = UriComponentsBuilder.fromUriString(baseUrl + "/search")
                 .queryParam("part", "snippet")
                 .queryParam("type", "video")
-//                .queryParam("videoCategoryId", "10")     // Music category
-                .queryParam("videoEmbeddable", "true")   // Must be embeddable
+//                .queryParam("videoCategoryId", "10")     // Keep music category
+                .queryParam("videoDuration", "any")      // Allows 2-4 minute songs
+                .queryParam("videoEmbeddable", "true")
                 .queryParam("maxResults", "20")
-                .queryParam("q", query)
+                .queryParam("q", refinedQuery)           // Using the refined query
                 .queryParam("key", apiKey)
-                .toUriString();
+                .build()
+                        .toUri();
 
-        log.info("URL: {}", url);
+        log.info("Requesting Music URL: {}", uri.getPath());
 
-        return restTemplate.getForObject(url, JsonNode.class);
+            // Reminder: This returns a JsonNode object, so no JSON.parse() is needed in your JS/TS
+
+        JsonNode results = restTemplate.getForObject(uri, JsonNode.class);
+
+        log.info("Fetched {} results from query '{}'", results.get("items").size(), query);
+
+        return results;
     }
 }

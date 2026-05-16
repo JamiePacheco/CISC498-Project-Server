@@ -19,6 +19,10 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+
+
+
+// lobby session object to be stored in memory
 @Data
 @Builder
 @AllArgsConstructor
@@ -63,13 +67,14 @@ public class LobbySession {
     public long getGameLobbyMessageIndex() {
         long index = gameLobbyMessageIndex;
         logger.info("Message index has been incremented to {}", index);
-        this.gameLobbyMessageIndex++;
+        ++this.gameLobbyMessageIndex;
         return index;
     }
 
 
     public GameLobbyMessage addNewMessage(GameLobbyMessage gameLobbyMessage) {
         gameLobbyMessage.setMessageIndex(this.getGameLobbyMessageIndex());
+        gameLobbyMessage.setTimestamp(Instant.now());
         this.messages.add(gameLobbyMessage);
         logger.info("New message has entered the domain [{}]: {}", gameLobbyMessage.getAuthor(), gameLobbyMessage.getTextMessage());
         return gameLobbyMessage;
@@ -102,10 +107,11 @@ public class LobbySession {
 
         addedUser = this.activeUsers.get(principal.getName());
         if (addedUser != null) {
-            addedUser.setTempId(userSession.getTempId());
+            addedUser.setTempId(principal.getName());
             addedUser.setSessionId(userSession.getSessionId());
             addedUser.setLastPingTime(Instant.now());
-            addedUser.setIsSpectator(this.getPlayers().size() == maxPlayers);
+            // user is spectator if there is a full lobby or the lobby is active (in-game)
+            addedUser.setIsSpectator(this.getPlayers().size() >= maxPlayers || this.isActive());
             addedUser.setActive(true);
             addedUser.setJoinedAt(Instant.now());
             addedUser.setFunctionMessage("Reconnect User");
@@ -154,20 +160,11 @@ public class LobbySession {
         return finalAddedUser;
     }
 
-    public UserSession disconnectUser(LobbyUser lobbyUser) {
-        UserSession connectedUser = activeUsers.get(lobbyUser.getLastSocketConnectionId());
-        if (connectedUser != null) {
-            connectedUser.setLastPingTime(Instant.now());
-            connectedUser.setIsSpectator(false);
-        }
-        return connectedUser;
-    }
-
     public UserSession disconnectUser(String principleName) {
         UserSession connectedUser = activeUsers.get(principleName);
         if (connectedUser != null) {
             connectedUser.setLastPingTime(Instant.now());
-            connectedUser.setIsSpectator(false);
+            connectedUser.setIsSpectator(true);
             connectedUser.setActive(false);
             connectedUser.setFunctionMessage("Disconnect User");
         }
@@ -175,8 +172,18 @@ public class LobbySession {
     }
 
     // TODO fix issue when there are 2+ players and this throws a nullpointerexception
-    public UserSession assignHost() {
-        logger.info("Removing {} as the host", host);
+    public UserSession assignHost(UserSession newHost) {
+
+        if (newHost != null) {
+            if (activeUsers.get(newHost.getTempId()) == null) {
+                throw new RuntimeException("Error new host does not exist");
+            }
+
+            newHost.setHost(true);
+            this.host = newHost;
+            return this.host;
+        }
+
         Optional<UserSession> oldestUser = activeUsers.values().stream()
                 .filter(u -> {
                     logger.info("[{}] {} joined at {}",
@@ -188,15 +195,20 @@ public class LobbySession {
                 })
                 .min(Comparator.comparing(UserSession::getJoinedAt));
 
-        // TDOO fix this for when there is only a single user
-        UserSession newHost = oldestUser.get();
-        newHost.setHost(true);
-        this.host = newHost;
-        return newHost;
+
+        if (oldestUser.isPresent()) {
+            UserSession newHostSession = oldestUser.get();
+            newHostSession.setHost(true);
+            this.host = newHostSession;
+            return newHostSession;
+        }
+
+        this.host = null;
+        return null;
     }
 
-    public void removeUser(String socketId) {
-        activeUsers.remove(socketId);
+    public void removeUser(String principle) {
+        activeUsers.remove(principle);
     }
 
     public boolean isInactive() {

@@ -1,6 +1,8 @@
 package com.aux_arena.components;
 
+import com.aux_arena.components.lobby.GameManager;
 import com.aux_arena.components.lobby.LobbyManager;
+import com.aux_arena.models.session.LobbySession;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,14 +16,14 @@ import java.security.Principal;
 @AllArgsConstructor
 public class WebSocketEventListener {
 
-    private LobbyManager lobbyManager;
+    private GameManager gameManager;
 
     private final static Logger log = LoggerFactory.getLogger(WebSocketEventListener.class);
 
     @EventListener
     public void handleSessionDisconnect(SessionDisconnectEvent event) {
         Principal principal = event.getUser();
-        lobbyManager.onUserDisconnect(principal);
+        gameManager.disconnectUser(principal);
         log.info("Disconnecting user {}", principal.getName());
     }
 

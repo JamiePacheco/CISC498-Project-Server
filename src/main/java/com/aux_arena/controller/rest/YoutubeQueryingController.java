@@ -24,6 +24,7 @@ public class YoutubeQueryingController {
     @GetMapping()
     public ResponseEntity<Response<JsonNode>> search(@RequestParam("query") String query) {
         JsonNode results = youtubeService.searchMusic(query);
+
         return ResponseEntity.ok(
                 Response.<JsonNode>builder()
                         .status(HttpStatus.ACCEPTED)

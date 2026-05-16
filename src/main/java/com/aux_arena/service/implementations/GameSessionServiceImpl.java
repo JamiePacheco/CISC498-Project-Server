@@ -16,6 +16,6 @@ public class GameSessionServiceImpl implements GameSessionService {
     public GameSession getGameSession(Long lobbySessionId) {
 
         // get the game session currently in memory that is associated with the lobby session
-        return gameManager.getGameSession(lobbySessionId);
+        return null;
     }
 }

@@ -10,10 +10,10 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SongChoice {
+
     private String videoUrl;
     private String title;
     private String thumbnail;
     private Long timestampStartAt;
     private Long timestampEndAt;
-    private Instant submittedAt;
 }
